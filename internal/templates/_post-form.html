@@ -1,0 +1,16 @@
+<div x-show="show">
+    <label for="">
+        Event Time
+        <input type="datetime-local" id="event-time" name="event_time"
+               value="{{ post.EventTime.Format("2006-01-02T15:04") }}" required/>
+    </label>
+
+    <label for="">
+        Body
+        <textarea name="body" rows="12" required>{{ post.Body }}</textarea>
+    </label>
+    <label for="">
+        Title (optional)
+        <input name="title" value="{{ post.Title }}"/>
+    </label>
+</div>

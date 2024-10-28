@@ -1,0 +1,17 @@
+{% extends "templates/_layout.html" %}
+
+{% block body %}
+<main class="container">
+    <h3>New Post</h3>
+    <form action="/new" method="POST">
+        {% include "templates/_post-form.html" %}
+        <div>
+            <button>post</button> or <a href="/">cancel</a>
+        </div>
+    </form>
+
+    <script>
+        document.getElementById('event-time').value = new Date().toISOString().substring(0, 16)
+    </script>
+</main>
+{% endblock %}

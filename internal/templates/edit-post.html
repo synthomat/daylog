@@ -1,0 +1,19 @@
+{% extends "templates/_layout.html" %}
+
+{% block body %}
+<main class="container">
+    <h3>Edit Post</h3>
+    <form action="/posts/{{ post.Id.String() }}/edit" method="POST">
+        {% include "templates/_post-form.html" %}
+
+        <div class="grid">
+            <div>
+                <button>post</button> or <a href="/">cancel</a>
+            </div>
+            <div style="text-align: right;">
+                <button class="secondary" hx-delete="/posts/{{ post.Id.String() }}" hx-params="none" hx-confirm="Delete this post?">Delete</button>
+            </div>
+        </div>
+    </form>
+</main>
+{% endblock %}
