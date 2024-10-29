@@ -19,6 +19,8 @@ import (
 	"time"
 )
 
+var sessionName = "dsession"
+
 // Parses the request and returns a Post struct
 func postFromRequest(r *http.Request) (*internal.Post, error) {
 	eventTime, _ := time.Parse("2006-01-02T15:04", r.FormValue("event_time"))
@@ -80,7 +82,7 @@ func AuthMiddleware(store sessions.Store) func(next http.Handler) http.Handler {
 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			session, err := store.Get(r, "session-name")
+			session, err := store.Get(r, sessionName)
 
 			if err != nil {
 				fmt.Print(err.Error())
@@ -168,7 +170,7 @@ func main() {
 
 			password := r.FormValue("password")
 			if password == authSecret {
-				session, _ := store.Get(r, "session-name")
+				session, _ := store.Get(r, sessionName)
 				session.Values["authenticated"] = true
 
 				err := session.Save(r, w)
@@ -185,7 +187,7 @@ func main() {
 	})
 
 	r.Post("/logout", func(w http.ResponseWriter, r *http.Request) {
-		session, _ := store.Get(r, "session-name")
+		session, _ := store.Get(r, sessionName)
 		delete(session.Values, "authenticated")
 		session.Options.MaxAge = -1
 		session.Save(r, w)
