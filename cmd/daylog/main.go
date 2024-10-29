@@ -15,7 +15,7 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strings"
+	"regexp"
 	"time"
 )
 
@@ -72,6 +72,12 @@ func postFromReq(r *http.Request) internal.Post {
 }
 
 func AuthMiddleware(store sessions.Store) func(next http.Handler) http.Handler {
+	rex, err := regexp.Compile("^/(static|login|logout)")
+
+	if err != nil {
+		panic(err)
+	}
+
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			session, err := store.Get(r, "session-name")
@@ -80,7 +86,8 @@ func AuthMiddleware(store sessions.Store) func(next http.Handler) http.Handler {
 				fmt.Print(err.Error())
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 			}
-			if strings.HasPrefix(r.RequestURI, "/login") || strings.HasPrefix(r.RequestURI, "/logout") {
+
+			if rex.Match([]byte(r.URL.Path)) {
 				next.ServeHTTP(w, r)
 				return
 			}
