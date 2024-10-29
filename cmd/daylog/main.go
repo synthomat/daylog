@@ -3,12 +3,15 @@ package main
 import (
 	"context"
 	"daylog/internal"
+	"embed"
 	"errors"
+	"fmt"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/google/uuid"
 	"github.com/gorilla/sessions"
 	"gorm.io/gorm"
+	"io/fs"
 	"log"
 	"net/http"
 	"os"
@@ -71,7 +74,12 @@ func postFromReq(r *http.Request) internal.Post {
 func AuthMiddleware(store sessions.Store) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			session, _ := store.Get(r, "session-name")
+			session, err := store.Get(r, "session-name")
+
+			if err != nil {
+				fmt.Print(err.Error())
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
 			if strings.HasPrefix(r.RequestURI, "/login") || strings.HasPrefix(r.RequestURI, "/logout") {
 				next.ServeHTTP(w, r)
 				return
@@ -85,6 +93,13 @@ func AuthMiddleware(store sessions.Store) func(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+//go:embed all:static
+var assets embed.FS
+
+func Assets() (fs.FS, error) {
+	return fs.Sub(assets, "static")
 }
 
 func main() {
@@ -103,9 +118,14 @@ func main() {
 	databaseFile := "daylog.db"
 
 	var store = sessions.NewCookieStore([]byte(sessionKey))
+	store.Options.Secure = false
+	store.Options.SameSite = http.SameSiteLaxMode
+
 	db, _ := internal.NewDB(databaseFile)
 
 	r := chi.NewRouter()
+
+	assets, _ := Assets()
 
 	/*
 		err = os.MkdirAll("uploads", os.ModePerm)
@@ -121,6 +141,10 @@ func main() {
 
 	r.Use(middleware.Logger)
 	r.Use(AuthMiddleware(store))
+
+	// Use the file system to serve static files
+	sfs := http.FileServer(http.FS(assets))
+	r.Handle("/static/*", http.StripPrefix("/static/", sfs))
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		var posts []internal.Post
@@ -140,7 +164,11 @@ func main() {
 				session, _ := store.Get(r, "session-name")
 				session.Values["authenticated"] = true
 
-				session.Save(r, w)
+				err := session.Save(r, w)
+				if err != nil {
+					fmt.Println(err.Error())
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+				}
 				http.Redirect(w, r, "/", http.StatusFound)
 				return
 			}
