@@ -2,7 +2,7 @@
 
 {% block body %}
 <main class="container">
-    <div class="grid">
+    <div class="grid" style="margin-bottom: 1em;">
         <div>
             <a href="/new" class="button">write.</a>
         </div>
@@ -11,18 +11,18 @@
         </div>
     </div>
 
-
     {% for post in posts %}
     <article>
-        <div class="grid">
-            <div>{% if post.Title %}<h2>{{ post.Title }}</h2>{% endif %}</div>
-            <div style="text-align: right; color:lightgray;"><small>{{ post.EventTime.Format("2006-01-02") }}</small>
-            </div>
-        </div>
+        {% if post.Title %}<h2>{{ post.Title }}</h2>{% endif %}
 
         {{ post.Body|markdown }}
-        <div>
-            <small><a href="/posts/{{ post.Id.String() }}/edit">edit</a></small>
+        <div class="grid">
+            <div>
+                <small><a href="/posts/{{ post.Id.String() }}/edit">edit</a></small>
+            </div>
+            <div style="text-align: right; color:darkgray;">
+                <small>{{ post.EventTime.Format("2006-01-02") }}</small>
+            </div>
         </div>
     </article>
     {% endfor %}
