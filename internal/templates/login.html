@@ -1,0 +1,28 @@
+{% extends "templates/_layout.html" %}
+
+{% block body %}
+<main class="container">
+
+
+    <div class="grid">
+        <div></div>
+
+        <div>
+            <h2>Login</h2>
+            <article>
+                <form method="POST" action="/login">
+                    <label for="">
+                        Password
+                        <input type="password" id="password" name="password" required autofocus />
+                    </label>
+                    <button>Login</button>
+                </form>
+            </article>
+        </div>
+        <div></div>
+    </div>
+
+
+
+</main>
+{% endblock %}

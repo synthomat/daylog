@@ -7,8 +7,12 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/google/uuid"
+	"github.com/gorilla/sessions"
 	"gorm.io/gorm"
+	"log"
 	"net/http"
+	"os"
+	"strings"
 	"time"
 )
 
@@ -64,8 +68,42 @@ func postFromReq(r *http.Request) internal.Post {
 	return r.Context().Value("post").(internal.Post)
 }
 
+func AuthMiddleware(store sessions.Store) func(next http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			session, _ := store.Get(r, "session-name")
+			if strings.HasPrefix(r.RequestURI, "/login") || strings.HasPrefix(r.RequestURI, "/logout") {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			if session.Values["authenticated"] == nil {
+				http.Redirect(w, r, "/login", http.StatusFound)
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
 func main() {
-	db, _ := internal.NewDB("daylog.db")
+	sessionKey := os.Getenv("SESSION_KEY")
+	if sessionKey == "" {
+		log.Fatal("No SESSION_KEY environment variable set")
+		return
+	}
+
+	authSecret := os.Getenv("AUTH_SECRET")
+
+	if authSecret == "" {
+		log.Fatal("No AUTH_SECRET environment variable set")
+	}
+
+	databaseFile := "daylog.db"
+
+	var store = sessions.NewCookieStore([]byte(sessionKey))
+	db, _ := internal.NewDB(databaseFile)
 
 	r := chi.NewRouter()
 
@@ -82,6 +120,7 @@ func main() {
 	}
 
 	r.Use(middleware.Logger)
+	r.Use(AuthMiddleware(store))
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		var posts []internal.Post
@@ -92,8 +131,36 @@ func main() {
 		})
 	})
 
+	r.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			r.ParseForm()
+
+			password := r.FormValue("password")
+			if password == authSecret {
+				session, _ := store.Get(r, "session-name")
+				session.Values["authenticated"] = true
+
+				session.Save(r, w)
+				http.Redirect(w, r, "/", http.StatusFound)
+				return
+			}
+
+		}
+		internal.Render(w, "login.html", map[string]any{})
+	})
+
+	r.Post("/logout", func(w http.ResponseWriter, r *http.Request) {
+		session, _ := store.Get(r, "session-name")
+		delete(session.Values, "authenticated")
+		session.Options.MaxAge = -1
+		session.Save(r, w)
+		w.Header().Add("HX-Redirect", "/login")
+		http.Redirect(w, r, "/login", http.StatusOK)
+		return
+	})
+
 	r.HandleFunc("/new", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == "POST" {
+		if r.Method == http.MethodPost {
 			r.ParseForm()
 
 			post, _ := postFromRequest(r)
@@ -110,7 +177,7 @@ func main() {
 		r.HandleFunc("/edit", func(w http.ResponseWriter, r *http.Request) {
 			post := postFromReq(r)
 
-			if r.Method == "POST" {
+			if r.Method == http.MethodPost {
 				r.ParseForm()
 
 				action := r.FormValue("action")

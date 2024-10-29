@@ -2,7 +2,15 @@
 
 {% block body %}
 <main class="container">
-    <a href="/new" class="button">write.</a>
+    <div class="grid">
+        <div>
+            <a href="/new" class="button">write.</a>
+        </div>
+        <div style="text-align: right;">
+            <a href="" hx-post="/logout">logout</a>
+        </div>
+    </div>
+
 
     {% for post in posts %}
     <article>
