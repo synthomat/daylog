@@ -2,6 +2,27 @@ article {
     padding: 15px;
 }
 
+/*
 ul {
     padding: .5em 1em 0 1em;
 }
+
+ul.year-filter {
+
+    padding: 0;
+}
+
+ul.year-filter li {
+    list-style: none;
+    float: left;
+    margin: 0 .2em;
+}
+
+ul.year-filter li a {
+    display: inline-block;
+    background-color: #eee;
+    padding: .15em .55em;
+    border-radius: 6px;
+    text-decoration: none;
+}
+*/

@@ -5,6 +5,7 @@ import (
 	"github.com/flosch/pongo2"
 	"github.com/russross/blackfriday/v2"
 	"net/http"
+	"os"
 	"path/filepath"
 )
 
@@ -22,8 +23,8 @@ func markdownFilter(in *pongo2.Value, param *pongo2.Value) (*pongo2.Value, *pong
 func init() {
 	pongo2.RegisterFilter("markdown", markdownFilter)
 
-	//content := os.DirFS("internal")
-	templateSet = pongo2.NewSet("", &Loader{Content: templateFS})
+	content := os.DirFS("internal")
+	templateSet = pongo2.NewSet("", &Loader{Content: content})
 	templateSet.Debug = true
 }
 

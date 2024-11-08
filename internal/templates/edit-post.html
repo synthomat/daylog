@@ -8,10 +8,10 @@
 
         <div class="grid">
             <div>
-                <button>update</button> or <a href="/">cancel</a>
+                <button class="btn btn-primary">update</button> or <a href="/">cancel</a>
             </div>
             <div style="text-align: right;">
-                <button class="secondary" hx-delete="/posts/{{ post.Id.String() }}" hx-params="none" hx-confirm="Delete this post?">Delete</button>
+                <button class="btn btn-outline-danger" hx-delete="/posts/{{ post.Id.String() }}" hx-params="none" hx-confirm="Delete this post?">Delete</button>
             </div>
         </div>
     </form>

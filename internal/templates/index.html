@@ -1,14 +1,18 @@
 {% extends "templates/_layout.html" %}
 
 {% block body %}
-<main class="container">
-    <div class="grid" style="margin-bottom: 1em;">
-        <div><a href="/new" class="button">write.</a></div>
-        <div style="text-align: right;"><a href="" hx-post="/logout">logout</a></div>
-    </div>
+<main class="container mt-5">
+    <div class="grid">
+    <ul class="year-filter">
+    <li><a href="/">all</a></li>
+    {% for ye in years %}
+    <li><a href="?year={{ ye.Year }}" {% ifequal ye.Year yearFilter %}style="background-color: #ddd;"{% endifequal %}>{{ ye.Year }}</a></li>
+    {% endfor %}
 
+    </ul>
+    </div>
     {% for post in posts %}
-    <article>
+    <article class="">
         {% if post.Title %}
         <h2>{{ post.Title }}</h2>
         {% endif %}

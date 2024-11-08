@@ -136,12 +136,36 @@ func Run(config Config) {
 	sfs := http.FileServer(http.FS(assetsFS))
 	r.Handle("/static/*", http.StripPrefix("/static/", sfs))
 
+	type YearEntries struct {
+		Year     int
+		Count    int
+		IsActive bool
+	}
+
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		yearQuery := r.URL.Query().Get("year")
+
+		//yearInt, _ := strconv.Atoi(yearQuery)
+
 		var posts []Post
-		db.Order("event_time desc").Find(&posts)
+
+		query := db.Order("event_time desc")
+
+		if yearQuery != "" {
+			query.Where("strftime('%Y', event_time) = ?", yearQuery)
+		}
+
+		query.Find(&posts)
+
+		var yearEntries []YearEntries
+		db.Raw("SELECT DISTINCT strftime('%Y', event_time) as year, count(*) as count\n" +
+			"FROM posts\n" +
+			"GROUP BY year\n" +
+			"ORDER BY year DESC").Scan(&yearEntries)
 
 		Render(w, "index.html", map[string]any{
 			"posts": posts,
+			"years": yearEntries,
 		})
 	})
 
@@ -162,8 +186,8 @@ func Run(config Config) {
 				http.Redirect(w, r, "/", http.StatusFound)
 				return
 			}
-
 		}
+
 		Render(w, "login.html", map[string]any{})
 	})
 
