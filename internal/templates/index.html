@@ -2,26 +2,27 @@
 
 {% block body %}
 <main class="container mt-5">
-    <div class="grid">
-    <ul class="year-filter">
-    <li><a href="/">all</a></li>
+    <div class="grid mb-5">
     {% for ye in years %}
-    <li><a href="?year={{ ye.Year }}" {% ifequal ye.Year yearFilter %}style="background-color: #ddd;"{% endifequal %}>{{ ye.Year }}</a></li>
+    <a href="?year={{ ye.Year }}"><span class="badge text-bg-{% ifequal ye.Year yearFilter %}secondary{% else %}light{% endifequal %}">{{ ye.Year }}</span></a>
     {% endfor %}
-
-    </ul>
     </div>
-    {% for post in posts %}
-    <article class="">
-        {% if post.Title %}
-        <h2>{{ post.Title }}</h2>
-        {% endif %}
 
-        {{ post.Body|markdown }}
-        <div>
-            <small>{{ post.EventTime.Format("2006-01-02") }} – <a href="/posts/{{ post.Id.String() }}/edit">edit</a></small>
+    {% for post in posts %}
+    <div class="card" style="margin: 0 0 1em 0;">
+        {% if post.Title %}
+        <div class="card-header" style="font-weight: bold;">
+            {{ post.Title }}
         </div>
-    </article>
+        {% endif %}
+        <div class="card-body">
+            {{ post.Body|markdown }}
+        </div>
+        <div class="card-footer">
+                <small>{{ post.EventTime.Format("2006-01-02") }} – <a href="/posts/{{ post.Id.String() }}/edit">edit</a></small>
+
+        </div>
+    </div>
     {% endfor %}
 
 </main>

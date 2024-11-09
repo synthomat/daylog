@@ -145,7 +145,12 @@ func Run(config Config) {
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		yearQuery := r.URL.Query().Get("year")
 
-		//yearInt, _ := strconv.Atoi(yearQuery)
+		if yearQuery == "" {
+			year, _, _ := time.Now().Date()
+			yearQuery = strconv.Itoa(year)
+		}
+
+		yearInt, _ := strconv.Atoi(yearQuery)
 
 		var posts []Post
 
@@ -164,8 +169,9 @@ func Run(config Config) {
 			"ORDER BY year DESC").Scan(&yearEntries)
 
 		Render(w, "index.html", map[string]any{
-			"posts": posts,
-			"years": yearEntries,
+			"posts":      posts,
+			"years":      yearEntries,
+			"yearFilter": yearInt,
 		})
 	})
 
