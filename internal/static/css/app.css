@@ -2,3 +2,7 @@ article {
     padding: 15px;
 }
 
+.card ul {
+    margin-bottom: .2em;
+    padding-left: 1em;
+}
