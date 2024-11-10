@@ -23,6 +23,7 @@
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
+                {% if authenticated %}
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
                         <a class="nav-link active" aria-current="page" href="/">Home</a>
@@ -34,6 +35,7 @@
                 <div class="d-flex">
                     <a href="" class="btn btn-outline-dark" hx-post="/logout">logout</a>
                 </div>
+                {% endif %}
             </div>
         </div>
     </nav>

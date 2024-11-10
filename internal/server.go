@@ -88,8 +88,10 @@ func AuthMiddleware(store sessions.Store) func(next http.Handler) http.Handler {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 			}
 
+			ctx := context.WithValue(r.Context(), "session", session)
+
 			if rex.Match([]byte(r.URL.Path)) {
-				next.ServeHTTP(w, r)
+				next.ServeHTTP(w, r.WithContext(ctx))
 				return
 			}
 
@@ -98,7 +100,7 @@ func AuthMiddleware(store sessions.Store) func(next http.Handler) http.Handler {
 				return
 			}
 
-			next.ServeHTTP(w, r)
+			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
 }
@@ -168,7 +170,7 @@ func Run(config Config) {
 			"GROUP BY year\n" +
 			"ORDER BY year DESC").Scan(&yearEntries)
 
-		Render(w, "index.html", map[string]any{
+		Render(w, r, "index.html", map[string]any{
 			"posts":      posts,
 			"years":      yearEntries,
 			"yearFilter": yearInt,
@@ -194,7 +196,7 @@ func Run(config Config) {
 			}
 		}
 
-		Render(w, "login.html", map[string]any{})
+		Render(w, r, "login.html", map[string]any{})
 	})
 
 	r.Post("/logout", func(w http.ResponseWriter, r *http.Request) {
@@ -218,7 +220,7 @@ func Run(config Config) {
 			return
 		}
 
-		Render(w, "new-post.html", nil)
+		Render(w, r, "new-post.html", nil)
 	})
 
 	r.With(InjectPost(db)).
@@ -245,7 +247,7 @@ func Run(config Config) {
 					return
 				}
 
-				Render(w, "edit-post.html", map[string]any{
+				Render(w, r, "edit-post.html", map[string]any{
 					"post": post,
 				})
 			})

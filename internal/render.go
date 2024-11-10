@@ -3,6 +3,7 @@ package internal
 import (
 	"embed"
 	"github.com/flosch/pongo2"
+	"github.com/gorilla/sessions"
 	"github.com/russross/blackfriday/v2"
 	"net/http"
 	"os"
@@ -28,14 +29,17 @@ func init() {
 	templateSet.Debug = true
 }
 
-func Render(w http.ResponseWriter, name string, data map[string]any) {
+func Render(w http.ResponseWriter, r *http.Request, name string, data map[string]any) {
 	ctx := pongo2.Context{}
+	session := r.Context().Value("session").(*sessions.Session)
 
 	if data != nil {
 		for k, v := range data {
 			ctx[k] = v
 		}
 	}
+
+	ctx["authenticated"] = session.Values["authenticated"]
 
 	tpl, err := templateSet.FromFile(filepath.Join("templates", name))
 
