@@ -40,6 +40,7 @@ func Render(w http.ResponseWriter, r *http.Request, name string, data map[string
 	}
 
 	ctx["authenticated"] = session.Values["authenticated"]
+	ctx["query"] = r.URL.Query()
 
 	tpl, err := templateSet.FromFile(filepath.Join("templates", name))
 

@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -146,6 +147,7 @@ func Run(config Config) {
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		yearQuery := r.URL.Query().Get("year")
+		searchQuery := strings.TrimSpace(r.URL.Query().Get("q"))
 
 		if yearQuery == "" {
 			year, _, _ := time.Now().Date()
@@ -160,6 +162,10 @@ func Run(config Config) {
 
 		if yearQuery != "" {
 			query.Where("strftime('%Y', event_time) = ?", yearQuery)
+		}
+
+		if searchQuery != "" {
+			query.Where("lower(body) like ?", "%"+strings.ToLower(searchQuery)+"%")
 		}
 
 		query.Find(&posts)
