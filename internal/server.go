@@ -160,12 +160,12 @@ func Run(config Config) {
 
 		query := db.Order("event_time desc")
 
-		if yearQuery != "" {
-			query.Where("strftime('%Y', event_time) = ?", yearQuery)
-		}
-
 		if searchQuery != "" {
 			query.Where("lower(body) like ?", "%"+strings.ToLower(searchQuery)+"%")
+		}
+
+		if searchQuery == "" && yearQuery != "" {
+			query.Where("strftime('%Y', event_time) = ?", yearQuery)
 		}
 
 		query.Find(&posts)
