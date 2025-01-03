@@ -1,15 +1,35 @@
-<div x-show="show">
-    <div class="mb-3">
-        <label class="form-label" for="">Event Time</label>
-        <input class="form-control" type="datetime-local" id="event-time" name="event_time"
-               value="{{ post.EventTime.Format("2006-01-02T15:04") }}" required/>
+<link rel="stylesheet" type="text/css" href="https://unpkg.com/trix@2.0.8/dist/trix.css">
+<script type="text/javascript" src="https://unpkg.com/trix@2.0.8/dist/trix.umd.min.js"></script>
+</head>
+
+
+<div class="row">
+    <div class="col">
+        <div class="mb-3">
+            <label class="form-label" for="">Body</label>
+            <input id="post-body" value="{{ post.Body }}" type="hidden" name="body">
+            <trix-editor input="post-body"></trix-editor>
+        </div>
+        <div class="mb-3">
+            <label class="form-label" for="">Title (optional)</label>
+            <input class="form-control" name="title" value="{{ post.Title }}"/>
+        </div>
     </div>
-    <div class="mb-3">
-        <label class="form-label" for="">Body</label>
-        <textarea class="form-control" name="body" rows="12" required>{{ post.Body }}</textarea>
-    </div>
-    <div class="mb-3">
-        <label class="form-label" for="">Title (optional)</label>
-        <input class="form-control" name="title" value="{{ post.Title }}"/>
+    <!--<div class="w-100 d-none d-md-block"></div>-->
+    <div class="col-lg-4">
+        <div class="mb-3">
+            <label class="form-label" for="">Event Time</label>
+            <input class="form-control" type="datetime-local" id="event-time" name="event_time"
+                   value="{{ post.EventTime.Format("2006-01-02T15:04") }}" required/>
+        </div>
+        <div id="geo-data" style="display: none;">
+            <img src="" id="weather_icon" style="width: 48px"/> <span id="weather_deg">loading</span>
+            <div>
+                <p><strong>Geo Information</strong></p>
+                <!--<input type="text" name="location"/>-->
+                <p>Post location 🎯</p>
+                <div id="map" style="width: 100%; height: 270px;"></div>
+            </div>
+        </div>
     </div>
 </div>

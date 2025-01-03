@@ -6,11 +6,11 @@
     <form action="/posts/{{ post.Id.String() }}/edit" method="POST">
         {% include "templates/_post-form.html" %}
 
-        <div class="grid">
-            <div>
+        <div class="row">
+            <div class="col">
                 <button class="btn btn-primary">update</button> or <a href="/">cancel</a>
             </div>
-            <div style="text-align: right;">
+            <div style="text-align: right;" class="col">
                 <button class="btn btn-outline-danger" hx-delete="/posts/{{ post.Id.String() }}" hx-params="none" hx-confirm="Delete this post?">Delete</button>
             </div>
         </div>

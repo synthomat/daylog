@@ -2,16 +2,82 @@
 
 {% block body %}
 <main class="container">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+          crossorigin=""/>
+
+    <!-- Make sure you put this AFTER Leaflet's CSS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+            crossorigin=""></script>
+
     <h3>New Post</h3>
+
     <form action="/new" method="POST">
         {% include "templates/_post-form.html" %}
         <div>
-            <button class="btn btn-primary">post</button> or <a href="/">cancel</a>
+            <button class="btn btn-primary">post</button>
+            or <a href="/">cancel</a>
         </div>
     </form>
 
     <script>
         document.getElementById('event-time').value = new Date().toISOString().substring(0, 16)
+
+
+        const fetchWeather = async (lat, lon) => {
+            const metrics = [
+                'precipitation', 'rain', 'relative_humidity_2m', 'snowfall', 'surface_pressure', 'temperature_2m',
+                'weather_code', 'wind_direction_10m', 'wind_speed_10m'
+            ]
+
+            let x = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=${metrics.join(',')}`)
+            return await x.json()
+        }
+
+        const renderLocation = (lon, lat, zoom = 14) => {
+            const map = L.map('map').setView([lat, lon], zoom);
+            L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            }).addTo(map);
+            const marker = L.marker([lat, lon]).addTo(map);
+        }
+
+        window.addEventListener("load", () => {
+            if (!("geolocation" in navigator)) {
+                console.log("No geolocation API available")
+                return
+            }
+
+            navigator.geolocation.getCurrentPosition(async (loc) => {
+                let lat = loc.coords.latitude.toFixed(5);
+                let lon = loc.coords.longitude.toFixed(5);
+
+                let location = {lat, lon}
+                let locationStr = JSON.stringify(location)
+
+                //document.getElementsByName("location")[0].value = locationStr
+                console.log(`Location: ${locationStr}`)
+                let weather = (await fetchWeather(lat, lon)).current
+
+                let weatherDescr = await fetch('https://gist.githubusercontent.com/stellasphere/9490c195ed2b53c707087c8c2db4ec0c/raw/76b0cb0ef0bfd8a2ec988aa54e30ecd1b483495d/descriptions.json')
+                let weatherJson = await weatherDescr.json()
+
+                let weather_icon = weatherJson[weather.weather_code].day.image
+                document.getElementById("weather_icon").src = weather_icon
+                document.getElementById("weather_deg").innerHTML = `<strong>${weather.temperature_2m}°C</strong>, ${weatherJson[weather.weather_code].day.description}`
+
+                console.log(JSON.stringify(weather))
+                document.getElementById("geo-data").style.setProperty("display", "block")
+                renderLocation(lon, lat)
+
+
+            }, (err) => {
+                //alert(err.message)
+            })
+
+        })
     </script>
 </main>
 {% endblock %}

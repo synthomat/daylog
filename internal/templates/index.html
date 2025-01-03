@@ -16,11 +16,10 @@
         </div>
         {% endif %}
         <div class="card-body">
-            {{ post.Body|markdown }}
+            {{ post.Body|safe }}
         </div>
         <div class="card-footer">
                 <small>{{ post.EventTime.Format("2006-01-02, Monday") }} – <a href="/posts/{{ post.Id.String() }}/edit">edit</a></small>
-
         </div>
     </div>
     {% endfor %}
