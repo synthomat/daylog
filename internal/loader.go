@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"io"
 	"io/fs"
-	"io/ioutil"
 )
 
 // Loader implements pongo2's TemplateLoader interface for templates stored
@@ -25,7 +24,7 @@ func (l *Loader) Get(path string) (io.Reader, error) {
 		return nil, err
 	}
 	defer f.Close()
-	b, err := ioutil.ReadAll(f)
+	b, err := io.ReadAll(f)
 	if err != nil {
 		return nil, err
 	}

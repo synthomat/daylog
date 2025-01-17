@@ -1,4 +1,4 @@
-{% extends "templates/_layout.html" %}
+{% extends "_layout.html" %}
 
 {% block body %}
 <main class="container">
@@ -14,7 +14,7 @@
     <h3>New Post</h3>
 
     <form action="/new" method="POST">
-        {% include "templates/_post-form.html" %}
+        {% include "_post-form.html" %}
         <div>
             <button class="btn btn-primary">post</button>
             or <a href="/">cancel</a>
@@ -28,7 +28,7 @@
         const fetchWeather = async (lat, lon) => {
             const metrics = [
                 'precipitation', 'rain', 'relative_humidity_2m', 'snowfall', 'surface_pressure', 'temperature_2m',
-                'weather_code', 'wind_direction_10m', 'wind_speed_10m'
+                'weather_code', 'wind_direction_10m', 'wind_speed_10m', 'is_day'
             ]
 
             let x = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=${metrics.join(',')}`)
@@ -63,12 +63,11 @@
 
                 let weatherDescr = await fetch('https://gist.githubusercontent.com/stellasphere/9490c195ed2b53c707087c8c2db4ec0c/raw/76b0cb0ef0bfd8a2ec988aa54e30ecd1b483495d/descriptions.json')
                 let weatherJson = await weatherDescr.json()
+                let weatherDetails = weatherJson[weather.weather_code][weather.is_day ? 'day' : 'night']
 
-                let weather_icon = weatherJson[weather.weather_code].day.image
+                let weather_icon = weatherDetails.image
                 document.getElementById("weather_icon").src = weather_icon
-                document.getElementById("weather_deg").innerHTML = `<strong>${weather.temperature_2m}°C</strong>, ${weatherJson[weather.weather_code].day.description}`
-
-                console.log(JSON.stringify(weather))
+                document.getElementById("weather_deg").innerHTML = `<strong>${weather.temperature_2m}°C</strong>, ${weatherDetails.description}`
                 document.getElementById("geo-data").style.setProperty("display", "block")
                 renderLocation(lon, lat)
 

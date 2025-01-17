@@ -1,4 +1,4 @@
-{% extends "templates/_layout.html" %}
+{% extends "_layout.html" %}
 
 {% block body %}
 <main class="container mt-4">
@@ -24,5 +24,12 @@
     </div>
     {% endfor %}
 
+    <nav aria-label="Page navigation example">
+        <ul class="pagination justify-content-center">
+            {% for p in pages %}
+            <li class="page-item"><a class="page-link {% if p == page %}active{% endif %}" href="?year={{yearFilter}}&p={{p}}">{{ p }}</a></li>
+            {% endfor %}
+        </ul>
+    </nav>
 </main>
 {% endblock %}

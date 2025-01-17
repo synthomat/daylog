@@ -1,14 +1,13 @@
 package internal
 
 import (
-	"context"
 	"embed"
 	"errors"
 	"fmt"
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
+	"github.com/gin-contrib/sessions"
+	"github.com/gin-contrib/sessions/cookie"
+	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/gorilla/sessions"
 	"gorm.io/gorm"
 	"io/fs"
 	"log"
@@ -38,116 +37,204 @@ func postFromRequest(r *http.Request) (*Post, error) {
 
 type Server struct {
 	Db     *gorm.DB
-	Router chi.Router
+	Engine *gin.Engine
 }
 
-func (s *Server) Run(router *chi.Mux) {
-	http.ListenAndServe("0.0.0.0:3002", router)
-}
+func InjectPost(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		postId := c.Param("pid")
+		postUuid := uuid.MustParse(postId)
 
-func InjectPost(db *gorm.DB) func(next http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			postId := chi.URLParam(r, "pid")
-			postUuid := uuid.MustParse(postId)
+		post := Post{
+			BaseModel: BaseModel{Id: postUuid},
+		}
 
-			post := Post{
-				BaseModel: BaseModel{Id: postUuid},
-			}
+		err := db.First(&post).Error
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.String(http.StatusNotFound, "Post not found")
+			return
+		}
 
-			err := db.First(&post).Error
-
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				w.Write([]byte("Post not found"))
-				w.WriteHeader(http.StatusNotFound)
-				return
-			}
-
-			ctx := context.WithValue(r.Context(), "post", post)
-			next.ServeHTTP(w, r.WithContext(ctx))
-		})
+		c.Set("post", post)
+		c.Next()
 	}
 }
 
-func postFromReq(r *http.Request) Post {
-	return r.Context().Value("post").(Post)
+func postFromCtx(c *gin.Context) Post {
+	return c.MustGet("post").(Post)
 }
 
-func AuthMiddleware(store sessions.Store) func(next http.Handler) http.Handler {
+func AuthMiddleware() gin.HandlerFunc {
 	rex, err := regexp.Compile("^/(static|login|logout)")
 
 	if err != nil {
 		panic(err)
 	}
 
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			session, err := store.Get(r, sessionName)
-
+	return func(c *gin.Context) {
+		session := sessions.Default(c)
+		/*
 			if err != nil {
 				fmt.Print(err.Error())
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 			}
+		*/
 
-			ctx := context.WithValue(r.Context(), "session", session)
+		if rex.Match([]byte(c.Request.URL.Path)) {
+			c.Next()
+			return
+		}
 
-			if rex.Match([]byte(r.URL.Path)) {
-				next.ServeHTTP(w, r.WithContext(ctx))
-				return
-			}
+		if session.Get("authenticated") == nil {
+			c.Header("HX-Redirect", "/login")
+			c.Redirect(http.StatusFound, "/login")
+			return
+		}
 
-			if session.Values["authenticated"] == nil {
-				http.Redirect(w, r, "/login", http.StatusFound)
-				return
-			}
-
-			next.ServeHTTP(w, r.WithContext(ctx))
-		})
+		c.Set("authenticated", true)
+		c.Next()
 	}
+}
+
+type AuthController struct {
+	db     *gorm.DB
+	config *Config
+}
+
+func (ac *AuthController) LoginHandler(c *gin.Context) {
+	session := sessions.Default(c)
+
+	if c.Request.Method != http.MethodPost {
+		c.HTML(http.StatusOK, "login.html", nil)
+		return
+	}
+
+	password := c.PostForm("password")
+
+	if password == ac.config.AuthSecret {
+		session.Set("authenticated", true)
+
+		err := session.Save()
+
+		if err != nil {
+			fmt.Println(err.Error())
+			c.AbortWithError(http.StatusInternalServerError, err)
+		}
+
+		c.Redirect(http.StatusFound, "/")
+		return
+	}
+
+	c.HTML(http.StatusOK, "login.html", nil)
+}
+
+func (ac *AuthController) LogoutHandler(c *gin.Context) {
+	session := sessions.Default(c)
+	session.Clear()
+	session.Save()
+
+	c.Header("HX-Redirect", "/")
+	c.Header("Location", "/")
+	c.String(http.StatusOK, "")
+}
+
+type PostController struct {
+	db *gorm.DB
+}
+
+func (pc *PostController) EditPostHandler(c *gin.Context) {
+	post := postFromCtx(c)
+
+	if c.Request.Method == http.MethodPost {
+		action := c.PostForm("action")
+
+		if action == "delete" {
+			pc.db.Delete(&post)
+			c.Redirect(http.StatusFound, "/")
+			return
+		}
+
+		editPost, _ := postFromRequest(c.Request)
+		editPost.Id = post.Id
+
+		pc.db.Save(editPost)
+
+		c.Redirect(http.StatusFound, "/")
+		return
+	}
+
+	c.HTML(http.StatusOK, "edit-post.html", Rcx(c, Cx{
+		"post": post,
+	}))
+}
+
+func (pc *PostController) DeletePostHandler(c *gin.Context) {
+	post := postFromCtx(c)
+	pc.db.Delete(&post)
+
+	c.Header("HX-Redirect", "/")
+	c.Redirect(http.StatusOK, "/")
+}
+
+func (pc *PostController) NewPostHandler(c *gin.Context) {
+	if c.Request.Method == http.MethodPost {
+		post, _ := postFromRequest(c.Request)
+
+		pc.db.Save(post)
+		c.Redirect(http.StatusFound, "/")
+		return
+	}
+
+	c.HTML(http.StatusOK, "new-post.html", Rcx(c, Cx{}))
 }
 
 //go:embed all:static
 var assetsFS embed.FS
 
 func Run(config Config) {
-	var store = sessions.NewCookieStore([]byte(config.SessionKey))
-	store.Options.Secure = false
-	store.Options.SameSite = http.SameSiteLaxMode
-
 	db, err := NewDB(config.DBFileName)
 
 	if err != nil {
 		log.Fatalf("Could not open database: %s\n", err.Error())
 	}
 
-	/*
-		err = os.MkdirAll("uploads", os.ModePerm)
+	r := gin.Default()
+	r.HTMLRender = DefaultPongo2(gin.IsDebugging())
 
-		if err != nil {
-			fmt.Println("Could not create upload folder")
-			return
-		}
-	*/
+	var store = cookie.NewStore([]byte(config.SessionKey))
+	r.Use(sessions.Sessions("dlsess", store))
 
-	r := chi.NewRouter()
+	r.Use(AuthMiddleware())
 
-	r.Use(middleware.Logger)
-	r.Use(AuthMiddleware(store))
-
-	// Use the file system to serve static files
 	assetsFS, _ := fs.Sub(assetsFS, "static")
-	sfs := http.FileServer(http.FS(assetsFS))
-	r.Handle("/static/*", http.StripPrefix("/static/", sfs))
+	r.StaticFS("/static", http.FS(assetsFS))
 
-	type YearEntries struct {
-		Year     int
-		Count    int
-		IsActive bool
+	authController := AuthController{
+		db:     db,
+		config: &config,
 	}
 
-	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		yearQuery := r.URL.Query().Get("year")
-		searchQuery := strings.TrimSpace(r.URL.Query().Get("q"))
+	r.Any("/login", authController.LoginHandler)
+	r.POST("/logout", authController.LogoutHandler)
+
+	postController := PostController{
+		db: db,
+	}
+
+	r.GET("/", func(c *gin.Context) {
+		type YearEntries struct {
+			Year     int
+			Count    int
+			IsActive bool
+		}
+
+		yearQuery := c.Query("year")
+		searchQuery := strings.TrimSpace(c.Query("q"))
+		page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+
+		if page < 1 {
+			page = 1
+		}
 
 		if yearQuery == "" {
 			year, _, _ := time.Now().Date()
@@ -168,7 +255,9 @@ func Run(config Config) {
 			query.Where("strftime('%Y', event_time) = ?", yearQuery)
 		}
 
-		query.Find(&posts)
+		var totalCount int64
+		query.Find(&posts).Count(&totalCount)
+		query.Offset((page - 1) * 10).Limit(10).Find(&posts)
 
 		var yearEntries []YearEntries
 		db.Raw("SELECT DISTINCT strftime('%Y', event_time) as year, count(*) as count\n" +
@@ -176,98 +265,31 @@ func Run(config Config) {
 			"GROUP BY year\n" +
 			"ORDER BY year DESC").Scan(&yearEntries)
 
-		Render(w, r, "index.html", map[string]any{
+		var pages []int64
+
+		for p := int64(1); p <= totalCount/10; p++ {
+			pages = append(pages, p)
+		}
+
+		c.HTML(http.StatusOK, "index.html", Rcx(c, Cx{
 			"posts":      posts,
 			"years":      yearEntries,
 			"yearFilter": yearInt,
-		})
+			"totalCount": totalCount,
+			"perPage":    10,
+			"page":       page,
+			"pages":      pages,
+		}))
 	})
 
-	r.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodPost {
-			r.ParseForm()
+	r.Any("/new", postController.NewPostHandler)
+	pg := r.Group("/posts/:pid").Use(InjectPost(db))
+	{
+		pg.Any("/edit", postController.EditPostHandler)
+		pg.DELETE("/", postController.DeletePostHandler)
+	}
 
-			password := r.FormValue("password")
-			if password == config.AuthSecret {
-				session, _ := store.Get(r, sessionName)
-				session.Values["authenticated"] = true
-
-				err := session.Save(r, w)
-				if err != nil {
-					fmt.Println(err.Error())
-					http.Error(w, err.Error(), http.StatusInternalServerError)
-				}
-				http.Redirect(w, r, "/", http.StatusFound)
-				return
-			}
-		}
-
-		Render(w, r, "login.html", map[string]any{})
-	})
-
-	r.Post("/logout", func(w http.ResponseWriter, r *http.Request) {
-		session, _ := store.Get(r, sessionName)
-		delete(session.Values, "authenticated")
-		session.Options.MaxAge = -1
-		session.Save(r, w)
-		w.Header().Add("HX-Redirect", "/login")
-		http.Redirect(w, r, "/login", http.StatusOK)
-		return
-	})
-
-	r.HandleFunc("/new", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodPost {
-			r.ParseForm()
-
-			post, _ := postFromRequest(r)
-
-			db.Save(post)
-			http.Redirect(w, r, "/", http.StatusFound)
-			return
-		}
-
-		Render(w, r, "new-post.html", nil)
-	})
-
-	r.With(InjectPost(db)).
-		Route("/posts/{pid}", func(r chi.Router) {
-			r.HandleFunc("/edit", func(w http.ResponseWriter, r *http.Request) {
-				post := postFromReq(r)
-
-				if r.Method == http.MethodPost {
-					r.ParseForm()
-
-					action := r.FormValue("action")
-
-					if action == "delete" {
-						db.Delete(&post)
-						http.Redirect(w, r, "/", http.StatusFound)
-						return
-					}
-
-					editPost, _ := postFromRequest(r)
-					editPost.Id = post.Id
-
-					db.Save(editPost)
-					http.Redirect(w, r, "/", http.StatusFound)
-					return
-				}
-
-				Render(w, r, "edit-post.html", map[string]any{
-					"post": post,
-				})
-			})
-
-			r.Delete("/", func(w http.ResponseWriter, r *http.Request) {
-				post := postFromReq(r)
-				db.Delete(&post)
-
-				w.Header().Add("HX-Redirect", "/")
-				w.WriteHeader(http.StatusNoContent)
-			})
-		})
-
-	err = http.ListenAndServe("0.0.0.0:"+strconv.Itoa(config.Port), r)
+	err = r.Run("0.0.0.0:" + strconv.Itoa(config.Port))
 
 	if err != nil {
 		log.Fatalf("Could not start application: %s\n", err.Error())
