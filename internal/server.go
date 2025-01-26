@@ -40,6 +40,9 @@ func Run(config Config) {
 	r.HTMLRender = DefaultPongo2(gin.IsDebugging())
 
 	var store = cookie.NewStore([]byte(config.SessionKey))
+	store.Options(sessions.Options{
+		Path: "/",
+	})
 	r.Use(sessions.Sessions("dlsess", store))
 
 	r.Use(AuthMiddleware())
