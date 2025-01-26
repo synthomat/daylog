@@ -2,17 +2,13 @@ package internal
 
 import (
 	"embed"
-	"errors"
-	"fmt"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 	"io/fs"
 	"log"
 	"net/http"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -20,176 +16,18 @@ import (
 
 var sessionName = "dsession"
 
-// Parses the request and returns a Post struct
-func postFromRequest(r *http.Request) (*Post, error) {
-	eventTime, _ := time.Parse("2006-01-02T15:04", r.FormValue("event_time"))
-
-	title := r.FormValue("title")
-
-	post := Post{
-		EventTime: eventTime,
-		Title:     &title,
-		Body:      r.FormValue("body"),
-	}
-
-	return &post, nil
-}
-
 type Server struct {
 	Db     *gorm.DB
 	Engine *gin.Engine
 }
 
-func InjectPost(db *gorm.DB) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		postId := c.Param("pid")
-		postUuid := uuid.MustParse(postId)
-
-		post := Post{
-			BaseModel: BaseModel{Id: postUuid},
-		}
-
-		err := db.First(&post).Error
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			c.String(http.StatusNotFound, "Post not found")
-			return
-		}
-
-		c.Set("post", post)
-		c.Next()
-	}
-}
-
-func postFromCtx(c *gin.Context) Post {
-	return c.MustGet("post").(Post)
-}
-
-func AuthMiddleware() gin.HandlerFunc {
-	rex, err := regexp.Compile("^/(static|login|logout)")
-
-	if err != nil {
-		panic(err)
-	}
-
-	return func(c *gin.Context) {
-		session := sessions.Default(c)
-		/*
-			if err != nil {
-				fmt.Print(err.Error())
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-			}
-		*/
-
-		if rex.Match([]byte(c.Request.URL.Path)) {
-			c.Next()
-			return
-		}
-
-		if session.Get("authenticated") == nil {
-			c.Header("HX-Redirect", "/login")
-			c.Redirect(http.StatusFound, "/login")
-			return
-		}
-
-		c.Set("authenticated", true)
-		c.Next()
-	}
-}
-
-type AuthController struct {
-	db     *gorm.DB
-	config *Config
-}
-
-func (ac *AuthController) LoginHandler(c *gin.Context) {
-	session := sessions.Default(c)
-
-	if c.Request.Method != http.MethodPost {
-		c.HTML(http.StatusOK, "login.html", nil)
-		return
-	}
-
-	password := c.PostForm("password")
-
-	if password == ac.config.AuthSecret {
-		session.Set("authenticated", true)
-
-		err := session.Save()
-
-		if err != nil {
-			fmt.Println(err.Error())
-			c.AbortWithError(http.StatusInternalServerError, err)
-		}
-
-		c.Redirect(http.StatusFound, "/")
-		return
-	}
-
-	c.HTML(http.StatusOK, "login.html", nil)
-}
-
-func (ac *AuthController) LogoutHandler(c *gin.Context) {
-	session := sessions.Default(c)
-	session.Clear()
-	session.Save()
-
-	c.Header("HX-Redirect", "/")
-	c.Header("Location", "/")
-	c.String(http.StatusOK, "")
-}
-
-type PostController struct {
-	db *gorm.DB
-}
-
-func (pc *PostController) EditPostHandler(c *gin.Context) {
-	post := postFromCtx(c)
-
-	if c.Request.Method == http.MethodPost {
-		action := c.PostForm("action")
-
-		if action == "delete" {
-			pc.db.Delete(&post)
-			c.Redirect(http.StatusFound, "/")
-			return
-		}
-
-		editPost, _ := postFromRequest(c.Request)
-		editPost.Id = post.Id
-
-		pc.db.Save(editPost)
-
-		c.Redirect(http.StatusFound, "/")
-		return
-	}
-
-	c.HTML(http.StatusOK, "edit-post.html", Rcx(c, Cx{
-		"post": post,
-	}))
-}
-
-func (pc *PostController) DeletePostHandler(c *gin.Context) {
-	post := postFromCtx(c)
-	pc.db.Delete(&post)
-
-	c.Header("HX-Redirect", "/")
-	c.Redirect(http.StatusOK, "/")
-}
-
-func (pc *PostController) NewPostHandler(c *gin.Context) {
-	if c.Request.Method == http.MethodPost {
-		post, _ := postFromRequest(c.Request)
-
-		pc.db.Save(post)
-		c.Redirect(http.StatusFound, "/")
-		return
-	}
-
-	c.HTML(http.StatusOK, "new-post.html", Rcx(c, Cx{}))
-}
-
 //go:embed all:static
 var assetsFS embed.FS
+
+type PaginationLink struct {
+	Ord    int64
+	Params string
+}
 
 func Run(config Config) {
 	db, err := NewDB(config.DBFileName)
@@ -265,20 +103,33 @@ func Run(config Config) {
 			"GROUP BY year\n" +
 			"ORDER BY year DESC").Scan(&yearEntries)
 
+		var paginationLinks []PaginationLink
+
 		var pages []int64
 
+		q := c.Request.URL.Query()
+
 		for p := int64(1); p <= totalCount/10; p++ {
-			pages = append(pages, p)
+			q.Set("page", strconv.FormatInt(p, 10))
+
+			pl := PaginationLink{
+				Ord:    p,
+				Params: q.Encode(),
+			}
+
+			paginationLinks = append(paginationLinks, pl)
 		}
 
 		c.HTML(http.StatusOK, "index.html", Rcx(c, Cx{
-			"posts":      posts,
-			"years":      yearEntries,
-			"yearFilter": yearInt,
-			"totalCount": totalCount,
-			"perPage":    10,
-			"page":       page,
-			"pages":      pages,
+			"posts":       posts,
+			"searchQuery": searchQuery,
+			"years":       yearEntries,
+			"yearFilter":  yearInt,
+			"totalCount":  totalCount,
+			"perPage":     10,
+			"page":        page,
+			"pages":       pages,
+			"pagination":  paginationLinks,
 		}))
 	})
 

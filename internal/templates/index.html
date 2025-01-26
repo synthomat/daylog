@@ -26,10 +26,11 @@
 
     <nav aria-label="Page navigation example">
         <ul class="pagination justify-content-center">
-            {% for p in pages %}
-            <li class="page-item"><a class="page-link {% if p == page %}active{% endif %}" href="?year={{yearFilter}}&p={{p}}">{{ p }}</a></li>
+            {% for p in pagination %}
+            <li class="page-item"><a class="page-link {% if p.Ord == page %}active{% endif %}" href="?{{ p.Params }}">{{ p.Ord }}</a></li>
             {% endfor %}
         </ul>
     </nav>
+
 </main>
 {% endblock %}
