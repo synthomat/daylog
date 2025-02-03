@@ -36,6 +36,9 @@ func Run(config Config) {
 		log.Fatalf("Could not open database: %s\n", err.Error())
 	}
 
+	dbInst, _ := db.DB()
+	defer dbInst.Close()
+
 	r := gin.Default()
 	r.HTMLRender = DefaultPongo2(gin.IsDebugging())
 
@@ -63,36 +66,31 @@ func Run(config Config) {
 	}
 
 	r.GET("/", func(c *gin.Context) {
-		type YearEntries struct {
-			Year     int
-			Count    int
-			IsActive bool
+		type PostYears struct {
+			Year  string
+			Count int
 		}
 
-		yearQuery := c.Query("year")
-		searchQuery := strings.TrimSpace(c.Query("q"))
+		currentYear, _, _ := time.Now().Date()
+		yearQuery := c.DefaultQuery("year", strconv.Itoa(currentYear))
 		page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+
+		searchQuery := strings.TrimSpace(c.Query("q"))
 
 		if page < 1 {
 			page = 1
 		}
 
-		if yearQuery == "" {
-			year, _, _ := time.Now().Date()
-			yearQuery = strconv.Itoa(year)
-		}
-
-		yearInt, _ := strconv.Atoi(yearQuery)
-
 		var posts []Post
 
 		query := db.Order("event_time desc")
 
+		// "full-text search"
 		if searchQuery != "" {
 			query.Where("lower(body) like ?", "%"+strings.ToLower(searchQuery)+"%")
 		}
 
-		if searchQuery == "" && yearQuery != "" {
+		if searchQuery == "" {
 			query.Where("strftime('%Y', event_time) = ?", yearQuery)
 		}
 
@@ -100,7 +98,7 @@ func Run(config Config) {
 		query.Find(&posts).Count(&totalCount)
 		query.Offset((page - 1) * 10).Limit(10).Find(&posts)
 
-		var yearEntries []YearEntries
+		var yearEntries []PostYears
 		db.Raw("SELECT DISTINCT strftime('%Y', event_time) as year, count(*) as count\n" +
 			"FROM posts\n" +
 			"GROUP BY year\n" +
@@ -122,12 +120,11 @@ func Run(config Config) {
 
 			paginationLinks = append(paginationLinks, pl)
 		}
-
 		c.HTML(http.StatusOK, "index.html", Rcx(c, Cx{
 			"posts":       posts,
 			"searchQuery": searchQuery,
 			"years":       yearEntries,
-			"yearFilter":  yearInt,
+			"yearFilter":  yearQuery,
 			"totalCount":  totalCount,
 			"perPage":     10,
 			"page":        page,
