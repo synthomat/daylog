@@ -4,7 +4,7 @@
 <main class="container mt-4">
     <div class="grid mb-5">
     {% for ye in years %}
-    <a href="?year={{ ye.Year }}"><span class="badge text-bg-{% ifequal ye.Year yearFilter %}secondary{% else %}light{% endifequal %}">{{ ye.Year }}</span></a>
+    <a href="?y={{ ye.Year }}"><span class="badge text-bg-{% ifequal ye.Year yearFilter %}secondary{% else %}light{% endifequal %}">{{ ye.Year }}</span></a>
     {% endfor %}
     </div>
 
@@ -25,7 +25,7 @@
     {% endfor %}
 
     <nav aria-label="Page navigation example">
-        <ul class="pagination justify-content-center">
+        <ul class="pagination justify-content-center flex-wrap">
             {% for p in pagination %}
             <li class="page-item"><a class="page-link {% if p.Ord == page %}active{% endif %}" href="?{{ p.Params }}">{{ p.Ord }}</a></li>
             {% endfor %}

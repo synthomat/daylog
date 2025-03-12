@@ -9,29 +9,27 @@ import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"log"
+	"log/slog"
 )
 
 //go:embed all:migrations/*.sql
 var mfs embed.FS
 
-func ModelsToMigrate() []interface{} {
-	return []interface{}{
-		&Post{},
-	}
-}
-
 func RunMigrations(dbc *gorm.DB) {
-	db, _ := dbc.DB()
+	slog.Debug("Loading migrations...")
+	source, err := iofs.New(mfs, "migrations")
 
-	d, err := iofs.New(mfs, "migrations")
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	db, _ := dbc.DB()
 	dbDriver, _ := sqlite3.WithInstance(db, &sqlite3.Config{})
 
-	m, err := migrate.NewWithInstance("iofs", d, "daylog.db", dbDriver)
+	m, err := migrate.NewWithInstance("iofs", source, "daylog", dbDriver)
+	//defer m.Close()
 
+	slog.Debug("Running migrations...")
 	err = m.Up()
 
 	if err != nil && !errors.Is(err, migrate.ErrNoChange) {
@@ -45,13 +43,6 @@ func NewDB(dbPath string) (*gorm.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	/*
-		if err := dbc.AutoMigrate(ModelsToMigrate()...); err != nil {
-			return nil, err
-		}
-
-	*/
 
 	RunMigrations(dbc)
 

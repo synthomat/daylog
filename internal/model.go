@@ -18,14 +18,6 @@ func (u *BaseModel) BeforeCreate(tx *gorm.DB) (err error) {
 	return
 }
 
-type PostType int
-
-const (
-	Generic = iota
-	Activity
-	Health
-)
-
 type Post struct {
 	BaseModel
 	EventTime time.Time `gorm:"datetime" json:"event_time"`
