@@ -2,9 +2,11 @@ package internal
 
 import (
 	"errors"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -149,8 +151,12 @@ type PostYears struct {
 	Count int
 }
 
+const maxArchivedDays = 7
+
 func IndexHandler(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		authedForArchive := c.GetBool("authedForArchive")
+
 		filter, _ := ParseFilter(c)
 
 		query := QueryByFilter(db, filter)
@@ -158,7 +164,13 @@ func IndexHandler(db *gorm.DB) gin.HandlerFunc {
 		var posts []Post
 		var totalCount int64
 
-		query.Model(Post{}).Count(&totalCount)
+		query.Model(Post{})
+
+		if !authedForArchive {
+			query.Where("(unixepoch() - unixepoch(event_time)) < 86400 * ?", maxArchivedDays)
+		}
+		query.Count(&totalCount)
+
 		query.Offset((filter.Page - 1) * filter.PageSize).Limit(filter.PageSize).Find(&posts)
 
 		var yearEntries []PostYears
@@ -190,6 +202,19 @@ func IndexHandler(db *gorm.DB) gin.HandlerFunc {
 			"totalCount":  totalCount,
 			"page":        filter.Page,
 			"pagination":  paginationLinks,
+			"reauth":      !authedForArchive,
 		}))
+	}
+}
+
+func UploadFileHandler(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		file, _ := c.FormFile("file")
+		log.Println(file.Filename)
+
+		// Upload the file to specific dst.
+		c.SaveUploadedFile(file, "uploads/"+file.Filename)
+
+		c.String(http.StatusOK, fmt.Sprintf("'%s' uploaded!", file.Filename))
 	}
 }

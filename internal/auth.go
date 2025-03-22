@@ -4,12 +4,9 @@ import (
 	"fmt"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"gorm.io/gorm"
-	"log/slog"
 	"net/http"
 	"regexp"
-	"strconv"
 	"time"
 )
 
@@ -30,16 +27,12 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
+		createdAt := session.Get("createdAt")
+
+		authedForArchive := (time.Now().Unix() - createdAt.(int64)) < 60*30
+		c.Set("authedForArchive", authedForArchive)
+
 		c.Set("authenticated", true)
-		if lastSeen := session.Get("lastSeen"); lastSeen != nil {
-			page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-
-			if page > 1 && (time.Now().Unix()-lastSeen.(int64)) > 10 {
-				fmt.Println("Would need auth")
-			}
-		}
-
-		session.Set("lastSeen", time.Now().Unix())
 		if err := session.Save(); err != nil {
 			_ = fmt.Errorf("error saving session: %v", err)
 		}
@@ -55,18 +48,23 @@ func LoginHandler(db *gorm.DB, config Config) gin.HandlerFunc {
 		session := sessions.Default(c)
 
 		if c.Request.Method == http.MethodPost {
-
 			password := c.PostForm("password")
 
-			if password == config.AuthSecret {
-				session.Set("authenticated", true)
-				err := session.Save()
+			if password != config.AuthSecret {
+				c.Redirect(http.StatusSeeOther, "/login")
+				return
+			}
 
-				if err != nil {
-					fmt.Println(err.Error())
-					c.AbortWithError(http.StatusInternalServerError, err)
-				}
+			session.Set("authenticated", true)
+			session.Set("createdAt", time.Now().Unix())
+			err := session.Save()
 
+			if err != nil {
+				fmt.Println(err.Error())
+				c.AbortWithError(http.StatusInternalServerError, err)
+			}
+
+			/*
 				userAgent := c.Request.UserAgent()
 				fmt.Println("User Agent:", userAgent)
 
@@ -80,10 +78,11 @@ func LoginHandler(db *gorm.DB, config Config) gin.HandlerFunc {
 					c.SetCookie("dl-device", deviceId, twoMonthsInSeconds, "/", "", false, true)
 					devices[deviceId] = userAgent
 				}
+			*/
 
-				c.Redirect(http.StatusFound, "/")
-				return
-			}
+			c.Redirect(http.StatusFound, "/")
+			return
+
 		}
 
 		c.HTML(http.StatusOK, "login.html", nil)
@@ -102,6 +101,7 @@ func LogoutHandler(db *gorm.DB) gin.HandlerFunc {
 
 		c.Header("HX-Redirect", "/")
 		c.Header("Location", "/")
-		c.String(http.StatusOK, "")
+		c.Writer.WriteHeader(http.StatusOK)
+		//c.String(http.StatusOK, "")
 	}
 }

@@ -3,34 +3,31 @@
 {% block body %}
 <main class="container mt-4">
     <div class="grid mb-5">
-    {% for ye in years %}
-    <a href="?y={{ ye.Year }}"><span class="badge text-bg-{% ifequal ye.Year yearFilter %}secondary{% else %}light{% endifequal %}">{{ ye.Year }}</span></a>
-    {% endfor %}
+        {% for ye in years %}
+        <a href="?y={{ ye.Year }}"><span
+                class="badge text-bg-{% ifequal ye.Year yearFilter %}secondary{% else %}light{% endifequal %}">{{ ye.Year }}</span></a>
+        {% endfor %}
     </div>
 
     {% for post in posts %}
-    <div class="card" style="margin: 0 0 1em 0;">
-        {% if post.Title %}
-        <div class="card-header" style="font-weight: bold;">
-            {{ post.Title }}
+    <article class="p-0 mb-5">
+        <div style="margin-bottom: .3em">
+            <strong style="color:#555">{{ post.EventTime.Format("Monday, 2006-01-02") }}</strong>
+            — <a style="color: #999; text-decoration: none;" href="/posts/{{ post.Id.String() }}/edit">edit</a>
         </div>
-        {% endif %}
-        <div class="card-body">
-            {{ post.Body|safe }}
-        </div>
-        <div class="card-footer">
-                <small>{{ post.EventTime.Format("2006-01-02, Monday") }} – <a href="/posts/{{ post.Id.String() }}/edit">edit</a></small>
-        </div>
-    </div>
+        {{ post.Body|safe }}
+    </article>
     {% endfor %}
 
     <nav aria-label="Page navigation example">
         <ul class="pagination justify-content-center flex-wrap">
             {% for p in pagination %}
-            <li class="page-item"><a class="page-link {% if p.Ord == page %}active{% endif %}" href="?{{ p.Params }}">{{ p.Ord }}</a></li>
+            <li class="page-item">
+                <a class="page-link {% if p.Ord == page %}active{% endif %}" href="?{{ p.Params }}">{{ p.Ord }}</a>
+            </li>
             {% endfor %}
         </ul>
+        {% if reauth %}<div class="justify-content-center flex-wrap" style="text-align: center; margin: 2em 0 2em 0">Please <a href="/login">re-authenticate</a> to see more entries</div>{% endif %}
     </nav>
-
 </main>
 {% endblock %}
