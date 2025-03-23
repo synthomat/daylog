@@ -1,8 +1,15 @@
 article {
     padding: 15px;
 }
-
+/*
+article img,
+figure img {
+    width: 200px;
+    height: 200px;
+}
+*/
 .card ul {
     margin-bottom: .2em;
     padding-left: 1em;
 }
+

@@ -1,4 +1,3 @@
-<link rel="stylesheet" type="text/css" href="https://unpkg.com/trix@2.1.13/dist/trix.css">
 <script type="text/javascript" src="https://unpkg.com/trix@2.1.13/dist/trix.umd.min.js"></script>
 
 <script>
@@ -34,11 +33,8 @@
             })
 
             xhr.addEventListener("load", function(event) {
-                if (xhr.status == 204) {
-                    var attributes = {
-                        url: HOST + key,
-                        href: HOST + key + "?content-disposition=attachment"
-                    }
+                if (xhr.status == 200) {
+                    const attributes = JSON.parse(xhr.response)
                     successCallback(attributes)
                 }
             })
@@ -69,7 +65,7 @@
         <div class="mb-3">
             <label class="form-label" for="">Body</label>
             <input id="post-body" value="{{ post.Body }}" type="hidden" name="body">
-            <trix-editor input="post-body"></trix-editor>
+            <trix-editor input="post-body" class="trix-content"></trix-editor>
         </div>
         <div class="mb-3">
             <label class="form-label" for="">Title (optional)</label>

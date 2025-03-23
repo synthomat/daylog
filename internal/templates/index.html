@@ -10,7 +10,7 @@
     </div>
 
     {% for post in posts %}
-    <article class="p-0 mb-5">
+    <article class="p-0 mb-5 trix-content">
         <div style="margin-bottom: .3em">
             <strong style="color:#555">{{ post.EventTime.Format("Monday, 2006-01-02") }}</strong>
             — <a style="color: #999; text-decoration: none;" href="/posts/{{ post.Id.String() }}/edit">edit</a>

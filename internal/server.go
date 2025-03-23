@@ -45,6 +45,7 @@ func Run(config Config) {
 
 	assetsFS, _ := fs.Sub(assetsFS, "static")
 	r.StaticFS("/static", http.FS(assetsFS))
+	r.Static("/uploads", "./uploads").Use(AuthMiddleware())
 
 	r.Match([]string{http.MethodGet, http.MethodPost}, "/login", LoginHandler(db, config))
 	r.POST("/logout", LogoutHandler(db))

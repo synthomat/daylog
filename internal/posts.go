@@ -2,12 +2,14 @@ package internal
 
 import (
 	"errors"
-	"fmt"
+	"github.com/disintegration/imaging"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
-	"log"
+	"image"
+	"image/color"
 	"net/http"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -207,14 +209,44 @@ func IndexHandler(db *gorm.DB) gin.HandlerFunc {
 	}
 }
 
+func CreateThumbnail(originalFilePath string, width, height int, thumbFilePath string) {
+	img, err := imaging.Open(originalFilePath, imaging.AutoOrientation(true))
+	if err != nil {
+		panic(err)
+	}
+	var thumbnail image.Image
+	thumbnail = imaging.Thumbnail(img, 300, 300, imaging.CatmullRom)
+
+	// create a new blank image
+	dst := imaging.New(width, height, color.NRGBA{})
+
+	// paste thumbnails into the new image side by side
+	dst = imaging.Paste(dst, thumbnail, image.Pt(0, 0))
+
+	// save the combined image to file
+	err = imaging.Save(dst, thumbFilePath)
+}
+
 func UploadFileHandler(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		file, _ := c.FormFile("file")
-		log.Println(file.Filename)
+
+		ext := filepath.Ext(file.Filename)
+
+		fileNameBase := uuid.New().String()
+		folder := "uploads/" + fileNameBase[0:2] + "/"
+
+		filePath := folder + fileNameBase + ext
+		thumbFilePath := folder + fileNameBase + "-thumb" + ext
 
 		// Upload the file to specific dst.
-		c.SaveUploadedFile(file, "uploads/"+file.Filename)
+		c.SaveUploadedFile(file, filePath)
 
-		c.String(http.StatusOK, fmt.Sprintf("'%s' uploaded!", file.Filename))
+		go CreateThumbnail(filePath, 400, 400, thumbFilePath)
+
+		c.JSON(http.StatusOK, gin.H{
+			"url":  "/" + thumbFilePath,
+			"href": "/" + filePath + "?content-disposition=attachment",
+		})
 	}
 }
