@@ -1,13 +1,16 @@
 package internal
 
 import (
+	"crypto/sha1"
+	"encoding/hex"
 	"errors"
 	"github.com/disintegration/imaging"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
-	"image"
 	"image/color"
+	"io"
+	"mime/multipart"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -209,44 +212,77 @@ func IndexHandler(db *gorm.DB) gin.HandlerFunc {
 	}
 }
 
-func CreateThumbnail(originalFilePath string, width, height int, thumbFilePath string) {
+func CreateThumbnail(originalFilePath string, width, height int, thumbFilePath string) error {
 	img, err := imaging.Open(originalFilePath, imaging.AutoOrientation(true))
+
 	if err != nil {
-		panic(err)
+		return err
 	}
-	var thumbnail image.Image
-	thumbnail = imaging.Thumbnail(img, 300, 300, imaging.CatmullRom)
+
+	thumbnail := imaging.Thumbnail(img, width, height, imaging.CatmullRom)
 
 	// create a new blank image
 	dst := imaging.New(width, height, color.NRGBA{})
 
 	// paste thumbnails into the new image side by side
-	dst = imaging.Paste(dst, thumbnail, image.Pt(0, 0))
+	dst = imaging.PasteCenter(dst, thumbnail)
 
 	// save the combined image to file
 	err = imaging.Save(dst, thumbFilePath)
+
+	return err
+}
+
+func CalculateHash(file *multipart.FileHeader) (*string, error) {
+	openedFile, err := file.Open()
+	if err != nil {
+		return nil, err
+	}
+	defer openedFile.Close()
+
+	// create SHA1-Hash
+	hasher := sha1.New()
+	if _, err := io.Copy(hasher, openedFile); err != nil {
+		return nil, err
+	}
+
+	// convert hash to hex
+	sha1Hash := hex.EncodeToString(hasher.Sum(nil))
+	return &sha1Hash, nil
+}
+
+const thumbSize = 500
+
+type UploadReponse struct {
+	Url  string `json:"url"`
+	Href string `json:"href"`
 }
 
 func UploadFileHandler(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		file, _ := c.FormFile("file")
+		fileHash, _ := CalculateHash(file)
 
 		ext := filepath.Ext(file.Filename)
 
-		fileNameBase := uuid.New().String()
+		fileNameBase := *fileHash
 		folder := "uploads/" + fileNameBase[0:2] + "/"
 
 		filePath := folder + fileNameBase + ext
 		thumbFilePath := folder + fileNameBase + "-thumb" + ext
 
 		// Upload the file to specific dst.
-		c.SaveUploadedFile(file, filePath)
+		err := c.SaveUploadedFile(file, filePath)
+		if err != nil {
+			return
+		}
 
-		go CreateThumbnail(filePath, 400, 400, thumbFilePath)
+		go CreateThumbnail(filePath, thumbSize, thumbSize, thumbFilePath)
 
-		c.JSON(http.StatusOK, gin.H{
-			"url":  "/" + thumbFilePath,
-			"href": "/" + filePath + "?content-disposition=attachment",
-		})
+		uploadResponse := &UploadReponse{
+			Url:  "/" + thumbFilePath,
+			Href: "/" + filePath + "?content-disposition=attachment",
+		}
+		c.JSON(http.StatusOK, uploadResponse)
 	}
 }
