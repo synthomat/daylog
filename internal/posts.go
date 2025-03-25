@@ -4,6 +4,7 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"github.com/disintegration/imaging"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -46,9 +47,10 @@ func postFromRequest(r *http.Request) (*Post, error) {
 	title := r.FormValue("title")
 
 	post := Post{
-		EventTime: eventTime,
-		Title:     &title,
-		Body:      r.FormValue("body"),
+		EventTime:     eventTime,
+		Title:         &title,
+		Body:          r.FormValue("body"),
+		AttachmentIds: strings.Split(r.FormValue("attachmentIds"), ","),
 	}
 
 	return &post, nil
@@ -254,8 +256,9 @@ func CalculateHash(file *multipart.FileHeader) (*string, error) {
 const thumbSize = 500
 
 type UploadReponse struct {
-	Url  string `json:"url"`
-	Href string `json:"href"`
+	Url          string    `json:"url"`
+	Href         string    `json:"href"`
+	AttachmentId uuid.UUID `json:"attachmentId"`
 }
 
 func UploadFileHandler(db *gorm.DB) gin.HandlerFunc {
@@ -279,9 +282,19 @@ func UploadFileHandler(db *gorm.DB) gin.HandlerFunc {
 
 		go CreateThumbnail(filePath, thumbSize, thumbSize, thumbFilePath)
 
+		attachment := Attachment{
+			Id:       uuid.New(),
+			FilePath: thumbFilePath,
+		}
+
+		db.Create(&attachment)
+
+		fmt.Printf("File %+v\n", attachment)
+
 		uploadResponse := &UploadReponse{
-			Url:  "/" + thumbFilePath,
-			Href: "/" + filePath + "?content-disposition=attachment",
+			Url:          "/" + thumbFilePath,
+			Href:         "/" + filePath + "?content-disposition=attachment",
+			AttachmentId: attachment.Id,
 		}
 		c.JSON(http.StatusOK, uploadResponse)
 	}

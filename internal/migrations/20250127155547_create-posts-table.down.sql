@@ -1,1 +1,1 @@
-DROP TABLE posts_;
+DROP TABLE IF EXISTS posts;
