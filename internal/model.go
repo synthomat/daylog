@@ -15,15 +15,15 @@ type BaseModel struct {
 
 func (u *BaseModel) BeforeCreate(tx *gorm.DB) (err error) {
 	u.Id = uuid.New()
+	u.CreatedAt = time.Now()
 	return
 }
 
 type Post struct {
 	BaseModel
-	EventTime     time.Time `gorm:"datetime" json:"eventTime"`
-	Title         *string   `json:"title"`
-	Body          string    `json:"body"`
-	AttachmentIds []string  `json:"attachmentIds"`
+	EventTime time.Time `gorm:"datetime" json:"eventTime"`
+	Title     *string   `json:"title"`
+	Body      string    `json:"body"`
 }
 
 type Attachment struct {
@@ -34,4 +34,11 @@ type Attachment struct {
 	Post     *Post     `gorm:"foreignKey:PostId" json:"-"`
 	InUse    bool      `gorm:"default:false" json:"inUse"`
 	FilePath string    `json:"filePath"`
+	FileHash string    `json:"fileHash"`
+}
+
+func (u *Attachment) BeforeCreate(tx *gorm.DB) (err error) {
+	u.Id = uuid.New()
+	u.CreatedAt = time.Now()
+	return
 }

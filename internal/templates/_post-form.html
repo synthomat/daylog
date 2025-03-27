@@ -2,12 +2,18 @@
 
 <script>
     (function() {
-        var attachmentIds = []
+        var attachmentIds = {}
 
         addEventListener("trix-attachment-add", function(event) {
             if (event.attachment.file) {
                 uploadFileAttachment(event.attachment)
             }
+        })
+
+        addEventListener("trix-attachment-remove", function(event) {
+            attachmentId = event.attachment.getAttribute("attachmentId")
+            delete attachmentIds[attachmentId]
+            document.getElementById('attachmentIds').value = Object.keys(attachmentIds)
         })
 
         function uploadFileAttachment(attachment) {
@@ -19,9 +25,8 @@
 
             function setAttributes(attributes) {
                 attachment.setAttributes(attributes)
-                attachmentIds.push(attributes.attachmentId)
-                console.log(attachmentIds)
-                el = document.getElementById('attachmentIds').value = attachmentIds
+                attachmentIds[attributes.attachmentId] = attributes.fileHash
+                document.getElementById('attachmentIds').value = Object.keys(attachmentIds)
             }
         }
 
@@ -72,7 +77,7 @@
     <div class="col-lg-4">
         <div class="mb-3">
             <label class="form-label" for="">Event Time</label>
-            <input class="form-control" type="datetime-local" id="event-time" name="event_time"
+            <input class="form-control" type="datetime-local" id="event-time" name="eventTime"
                    value="{{ post.EventTime.Format("2006-01-02T15:04") }}" required/>
         </div>
         <div id="geo-data" style="display: none;">

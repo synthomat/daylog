@@ -3,6 +3,7 @@ CREATE TABLE IF NOT EXISTS attachments
     id         uuid
         constraint attachments_pk
             primary key,
+    file_hash    text not null,
     post_id    uuid
         constraint attachments_posts_id_fk
             references posts,

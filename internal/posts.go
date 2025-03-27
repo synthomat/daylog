@@ -40,6 +40,12 @@ func InjectPostMiddleware(db *gorm.DB) gin.HandlerFunc {
 	}
 }
 
+type PostRequest struct {
+	AttachmentIds string    `form:"attachmentIds" json:"attachmentIds"`
+	EventTime     time.Time `form:"eventTime" json:"eventTime" time_format:"2006-01-02T15:04"`
+	Body          string    `form:"body" json:"body"`
+}
+
 // Parses the request and returns a Post struct
 func postFromRequest(r *http.Request) (*Post, error) {
 	eventTime, _ := time.Parse("2006-01-02T15:04", r.FormValue("event_time"))
@@ -47,10 +53,9 @@ func postFromRequest(r *http.Request) (*Post, error) {
 	title := r.FormValue("title")
 
 	post := Post{
-		EventTime:     eventTime,
-		Title:         &title,
-		Body:          r.FormValue("body"),
-		AttachmentIds: strings.Split(r.FormValue("attachmentIds"), ","),
+		EventTime: eventTime,
+		Title:     &title,
+		Body:      r.FormValue("body"),
 	}
 
 	return &post, nil
@@ -99,9 +104,31 @@ func DeletePostHandler(db *gorm.DB) gin.HandlerFunc {
 func NewPostHandler(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if c.Request.Method == http.MethodPost {
-			post, _ := postFromRequest(c.Request)
+			var postRequest PostRequest
+			c.ShouldBind(&postRequest)
 
-			db.Save(post)
+			post := Post{
+				EventTime: postRequest.EventTime,
+				Body:      postRequest.Body,
+			}
+
+			if err := db.Save(&post).Error; err != nil {
+				fmt.Println(err)
+			}
+
+			attachmentIds := strings.Split(postRequest.AttachmentIds, ",")
+
+			for _, attachmentId := range attachmentIds {
+				attachment := Attachment{
+					Id: uuid.MustParse(attachmentId),
+				}
+
+				db.Model(&attachment).Updates(Attachment{
+					InUse:  true,
+					PostId: post.Id,
+				})
+			}
+
 			c.Redirect(http.StatusFound, "/")
 			return
 		}
@@ -259,6 +286,7 @@ type UploadReponse struct {
 	Url          string    `json:"url"`
 	Href         string    `json:"href"`
 	AttachmentId uuid.UUID `json:"attachmentId"`
+	FileHash     string    `json:"fileHash"`
 }
 
 func UploadFileHandler(db *gorm.DB) gin.HandlerFunc {
@@ -283,18 +311,17 @@ func UploadFileHandler(db *gorm.DB) gin.HandlerFunc {
 		go CreateThumbnail(filePath, thumbSize, thumbSize, thumbFilePath)
 
 		attachment := Attachment{
-			Id:       uuid.New(),
-			FilePath: thumbFilePath,
+			FilePath: filePath,
+			FileHash: *fileHash,
 		}
 
 		db.Create(&attachment)
-
-		fmt.Printf("File %+v\n", attachment)
 
 		uploadResponse := &UploadReponse{
 			Url:          "/" + thumbFilePath,
 			Href:         "/" + filePath + "?content-disposition=attachment",
 			AttachmentId: attachment.Id,
+			FileHash:     attachment.FileHash,
 		}
 		c.JSON(http.StatusOK, uploadResponse)
 	}

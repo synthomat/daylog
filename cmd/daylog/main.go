@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-var (
+const (
 	defaultPort     = 3000
 	defaultDatabase = "daylog.db"
 )
