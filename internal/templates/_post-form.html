@@ -4,26 +4,33 @@
     (function() {
         var attachmentIds = []
 
-        addEventListener("trix-attachment-add", function(event) {
-            if (event.attachment.file) {
-                uploadFileAttachment(event.attachment)
-            }
+        addEventListener('trix-initialize', (event) => {
+            updateAttachmentsList(event.srcElement.editorController)
         })
 
-        function uploadFileAttachment(attachment) {
-            uploadFile(attachment.file, setProgress, setAttributes)
+        addEventListener('trix-blur', (event) => {
+            updateAttachmentsList(event.srcElement.editorController)
+        })
 
-            function setProgress(progress) {
-                attachment.setUploadProgress(progress)
-            }
-
-            function setAttributes(attributes) {
-                attachment.setAttributes(attributes)
-                attachmentIds.push(attributes.attachmentId)
-                console.log(attachmentIds)
-                el = document.getElementById('attachmentIds').value = attachmentIds
-            }
+        function updateAttachmentsList(attachment) {
+            const attachmentIds = attachment.attachmentManager.getAttachments().map(a =>
+                a.attachment.getAttribute('attachmentId')
+            )
+            document.getElementById('attachmentIds').value = attachmentIds.join(',')
         }
+
+        addEventListener("trix-attachment-add", (event) => {
+            if (!event.attachment.file) {
+                return
+            }
+
+            const attachment = event.attachment;
+
+            uploadFile(attachment.file,
+                (progress) => attachment.setUploadProgress(progress),
+                (attributes) => attachment.setAttributes(attributes)
+            )
+        })
 
         function uploadFile(file, progressCallback, successCallback) {
             var formData = createFormData(file)
@@ -31,12 +38,12 @@
 
             xhr.open("POST", "/upload", true)
 
-            xhr.upload.addEventListener("progress", function(event) {
+            xhr.upload.addEventListener("progress", (event) => {
                 var progress = event.loaded / event.total * 100
                 progressCallback(progress)
             })
 
-            xhr.addEventListener("load", function(event) {
+            xhr.addEventListener("load", (event) => {
                 if (xhr.status == 200) {
                     const attributes = JSON.parse(xhr.response)
                     successCallback(attributes)
@@ -72,7 +79,7 @@
     <div class="col-lg-4">
         <div class="mb-3">
             <label class="form-label" for="">Event Time</label>
-            <input class="form-control" type="datetime-local" id="event-time" name="event_time"
+            <input class="form-control" type="datetime-local" id="event-time" name="eventTime"
                    value="{{ post.EventTime.Format("2006-01-02T15:04") }}" required/>
         </div>
         <div id="geo-data" style="display: none;">

@@ -5,9 +5,9 @@ CREATE TABLE IF NOT EXISTS attachments
             primary key,
     post_id    uuid
         constraint attachments_posts_id_fk
-            references posts,
+            references posts
+            on update cascade on delete set null,
     created_at datetime default CURRENT_TIMESTAMP not null,
-    in_use     boolean  default false,
     file_path  text                               not null
 );
 

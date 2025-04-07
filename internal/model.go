@@ -8,30 +8,28 @@ import (
 
 type BaseModel struct {
 	Id        uuid.UUID      `gorm:"primaryKey" json:"id"`
-	CreatedAt time.Time      `gorm:"default:CURRENT_TIMESTAMP;not null" json:"createdAt"`
+	CreatedAt time.Time      `gorm:"not null" json:"createdAt"`
 	UpdatedAt *time.Time     `json:"updatedAt"`
 	DeletedAt gorm.DeletedAt `json:"deletedAt"`
 }
 
-func (u *BaseModel) BeforeCreate(tx *gorm.DB) (err error) {
+func (u *BaseModel) BeforeCreate(_ *gorm.DB) (err error) {
 	u.Id = uuid.New()
 	return
 }
 
 type Post struct {
 	BaseModel
-	EventTime     time.Time `gorm:"datetime" json:"eventTime"`
-	Title         *string   `json:"title"`
-	Body          string    `json:"body"`
-	AttachmentIds []string  `json:"attachmentIds"`
+	EventTime time.Time `gorm:"datetime" json:"eventTime"`
+	Title     *string   `json:"title"`
+	Body      string    `json:"body"`
 }
 
 type Attachment struct {
 	Id        uuid.UUID `gorm:"primaryKey" json:"id"`
 	CreatedAt time.Time `gorm:"default:CURRENT_TIMESTAMP;not null" json:"createdAt"`
 
-	PostId   uuid.UUID `gorm:"primaryKey" json:"postId"`
-	Post     *Post     `gorm:"foreignKey:PostId" json:"-"`
-	InUse    bool      `gorm:"default:false" json:"inUse"`
-	FilePath string    `json:"filePath"`
+	PostId   *uuid.UUID `gorm:"primaryKey" json:"postId"`
+	Post     *Post      `gorm:"foreignKey:PostId" json:"-"`
+	FilePath string     `json:"filePath"`
 }

@@ -25,7 +25,7 @@ func Run(config Config) {
 	db, err := NewDB(config.DBFileName)
 
 	if err != nil {
-		slog.Error("Could not open database: %s\n", err.Error())
+		slog.Error("Could not open database\n", "database", err.Error())
 		return
 	}
 

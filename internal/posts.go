@@ -5,11 +5,9 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/disintegration/imaging"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
-	"image/color"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -40,25 +38,65 @@ func InjectPostMiddleware(db *gorm.DB) gin.HandlerFunc {
 	}
 }
 
+type PostRequest struct {
+	EventTime     time.Time `form:"eventTime" time_format:"2006-01-02T15:04"`
+	Body          string    `form:"body" binding:"required"`
+	AttachmentIds string    `form:"attachmentIds"`
+}
+
 // Parses the request and returns a Post struct
 func postFromRequest(r *http.Request) (*Post, error) {
-	eventTime, _ := time.Parse("2006-01-02T15:04", r.FormValue("event_time"))
+	eventTime, _ := time.Parse("2006-01-02T15:04", r.FormValue("eventTime"))
 
 	title := r.FormValue("title")
 
 	post := Post{
-		EventTime:     eventTime,
-		Title:         &title,
-		Body:          r.FormValue("body"),
-		AttachmentIds: strings.Split(r.FormValue("attachmentIds"), ","),
+		EventTime: eventTime,
+		Title:     &title,
+		Body:      r.FormValue("body"),
 	}
+	fmt.Println(r.FormValue("attachmentIds"))
 
 	return &post, nil
 }
 
+func NewPostHandler(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if c.Request.Method == http.MethodPost {
+			var postRequest PostRequest
+			c.ShouldBind(&postRequest)
+
+			var post Post
+			PostRequestToModel(postRequest, &post)
+			db.Save(post)
+
+			err := db.Save(&post).Error
+			if err != nil {
+				fmt.Println(err)
+			}
+
+			postAttachmentIds := strings.Split(postRequest.AttachmentIds, ",")
+			for _, aid := range postAttachmentIds {
+				db.Model(&Attachment{}).Where("id = ?", aid).Update("post_id", post.Id)
+			}
+			c.Redirect(http.StatusFound, "/")
+			return
+		}
+
+		c.HTML(http.StatusOK, "new-post.html", Rcx(c, Cx{}))
+	}
+}
+
 const DeletePostAction = "delete"
 
+func PostRequestToModel(req PostRequest, model *Post) {
+	model.Body = req.Body
+	model.EventTime = req.EventTime
+}
+
 func EditPostHandler(db *gorm.DB) gin.HandlerFunc {
+	//attachmentManager := &AttachmentManager{db: db}
+
 	return func(c *gin.Context) {
 		post := c.MustGet("post").(Post)
 
@@ -71,10 +109,31 @@ func EditPostHandler(db *gorm.DB) gin.HandlerFunc {
 				return
 			}
 
-			editPost, _ := postFromRequest(c.Request)
-			editPost.Id = post.Id
+			var postRequest PostRequest
+			c.ShouldBind(&postRequest)
 
-			db.Save(editPost)
+			PostRequestToModel(postRequest, &post)
+			db.Save(post)
+
+			postAttachmentIds := strings.Split(postRequest.AttachmentIds, ",")
+
+			var savedAttachments []Attachment
+			db.Find(&savedAttachments, "post_id = ?", post.Id)
+
+			var savedAttachmentIds []string
+			for _, sa := range savedAttachments {
+				savedAttachmentIds = append(savedAttachmentIds, sa.Id.String())
+			}
+
+			attachmentDiff := DiffAttachments(postAttachmentIds, savedAttachmentIds)
+
+			for _, aid := range attachmentDiff.ToAdd {
+				db.Model(&Attachment{}).Where("id = ?", aid).Update("post_id", post.Id)
+			}
+
+			for _, aid := range attachmentDiff.ToDelete {
+				db.Model(&Attachment{}).Where("id = ?", aid).Update("post_id", nil)
+			}
 
 			c.Redirect(http.StatusFound, "/")
 			return
@@ -93,20 +152,6 @@ func DeletePostHandler(db *gorm.DB) gin.HandlerFunc {
 
 		c.Header("HX-Redirect", "/")
 		c.Redirect(http.StatusOK, "/")
-	}
-}
-
-func NewPostHandler(db *gorm.DB) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		if c.Request.Method == http.MethodPost {
-			post, _ := postFromRequest(c.Request)
-
-			db.Save(post)
-			c.Redirect(http.StatusFound, "/")
-			return
-		}
-
-		c.HTML(http.StatusOK, "new-post.html", Rcx(c, Cx{}))
 	}
 }
 
@@ -165,20 +210,23 @@ func IndexHandler(db *gorm.DB) gin.HandlerFunc {
 		authedForArchive := c.GetBool("authedForArchive")
 
 		filter, _ := ParseFilter(c)
-
-		query := QueryByFilter(db, filter)
-
 		var posts []Post
+
+		query := QueryByFilter(db.Table("posts"), filter)
+
 		var totalCount int64
 
-		query.Model(Post{})
+		//query.Model(&posts)
 
 		if !authedForArchive {
 			query.Where("(unixepoch() - unixepoch(event_time)) < 86400 * ?", maxArchivedDays)
 		}
 		query.Count(&totalCount)
 
-		query.Offset((filter.Page - 1) * filter.PageSize).Limit(filter.PageSize).Find(&posts)
+		err := query.Offset((filter.Page - 1) * filter.PageSize).Limit(filter.PageSize).Find(&posts).Error
+		if err != nil {
+			fmt.Println(err)
+		}
 
 		var yearEntries []PostYears
 		db.Raw(
@@ -212,27 +260,6 @@ func IndexHandler(db *gorm.DB) gin.HandlerFunc {
 			"reauth":      !authedForArchive,
 		}))
 	}
-}
-
-func CreateThumbnail(originalFilePath string, width, height int, thumbFilePath string) error {
-	img, err := imaging.Open(originalFilePath, imaging.AutoOrientation(true))
-
-	if err != nil {
-		return err
-	}
-
-	thumbnail := imaging.Thumbnail(img, width, height, imaging.CatmullRom)
-
-	// create a new blank image
-	dst := imaging.New(width, height, color.NRGBA{})
-
-	// paste thumbnails into the new image side by side
-	dst = imaging.PasteCenter(dst, thumbnail)
-
-	// save the combined image to file
-	err = imaging.Save(dst, thumbFilePath)
-
-	return err
 }
 
 func CalculateHash(file *multipart.FileHeader) (*string, error) {
@@ -280,7 +307,7 @@ func UploadFileHandler(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
-		go CreateThumbnail(filePath, thumbSize, thumbSize, thumbFilePath)
+		CreateThumbnail(filePath, thumbSize, thumbSize, thumbFilePath)
 
 		attachment := Attachment{
 			Id:       uuid.New(),
@@ -288,8 +315,6 @@ func UploadFileHandler(db *gorm.DB) gin.HandlerFunc {
 		}
 
 		db.Create(&attachment)
-
-		fmt.Printf("File %+v\n", attachment)
 
 		uploadResponse := &UploadReponse{
 			Url:          "/" + thumbFilePath,

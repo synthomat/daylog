@@ -1,3 +1,6 @@
+# UNRELEASED
+
+
 # 2025-03-22
 * Changed layout: removed card styled posts, now they are just articles
 * When a user wants to see older/archived entries, they need to re-authenticate if the current session is too old
