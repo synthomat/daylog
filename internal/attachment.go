@@ -2,7 +2,6 @@ package internal
 
 import (
 	"github.com/disintegration/imaging"
-	"gorm.io/gorm"
 	"image/color"
 	"slices"
 )
@@ -49,12 +48,4 @@ func CreateThumbnail(originalFilePath string, width, height int, thumbFilePath s
 	err = imaging.Save(dst, thumbFilePath)
 
 	return err
-}
-
-type AttachmentManager struct {
-	db *gorm.DB
-}
-
-func (m *AttachmentManager) SyncAttachments(attachment Attachment) error {
-	return nil
 }

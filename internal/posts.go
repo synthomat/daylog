@@ -11,6 +11,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -288,39 +289,139 @@ type UploadReponse struct {
 	AttachmentId uuid.UUID `json:"attachmentId"`
 }
 
+type StorageConfig struct {
+	Path         string
+	ExternalPath string
+}
+
+type Storage struct {
+	config StorageConfig
+}
+
+func NewStorage(config StorageConfig) *Storage {
+	return &Storage{
+		config: config,
+	}
+}
+
+func (s *Storage) SaveFile(file *multipart.FileHeader, fileName string) error {
+	dst := s.config.Path
+	dst = fileName
+
+	src, err := file.Open()
+	if err != nil {
+		return err
+	}
+	defer src.Close()
+
+	if err = os.MkdirAll(filepath.Dir(dst), 0750); err != nil {
+		return err
+	}
+
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, src)
+	return err
+}
+
+type AttachmentManager struct {
+	Storage *Storage
+	Db      *gorm.DB
+}
+
+func (m AttachmentManager) CreateThumbnail(file *multipart.FileHeader, dst string) error {
+	return nil
+}
+
+type AttachmentResult struct {
+	OriginalFilename string
+	ThumbFilename    string
+}
+
+func (m AttachmentManager) SaveAttachment(file *multipart.FileHeader, newFilename string) (*AttachmentResult, error) {
+	prefix := newFilename[0:2]
+
+	fullOrigPath := filepath.Join(m.Storage.config.Path, "orig", prefix, newFilename)
+	fullThumbPath := filepath.Join(m.Storage.config.Path, "thumb", prefix, newFilename)
+
+	if err := m.Storage.SaveFile(file, fullOrigPath); err != nil {
+		return nil, err
+	}
+
+	if err := os.MkdirAll(filepath.Dir(fullThumbPath), 0750); err != nil {
+		return nil, err
+	}
+
+	if err := CreateThumbnail(fullOrigPath, thumbSize, thumbSize, fullThumbPath); err != nil {
+		return nil, err
+	}
+
+	res := &AttachmentResult{
+		OriginalFilename: fullOrigPath,
+		ThumbFilename:    fullThumbPath,
+	}
+
+	return res, nil
+}
+
+func NewAttachmentManager(db *gorm.DB) *AttachmentManager {
+	return &AttachmentManager{
+		Db: db,
+		Storage: NewStorage(StorageConfig{
+			Path:         "uploads",
+			ExternalPath: "/uploads",
+		}),
+	}
+}
+
 func UploadFileHandler(db *gorm.DB) gin.HandlerFunc {
+	manager := NewAttachmentManager(db)
+
 	return func(c *gin.Context) {
 		file, _ := c.FormFile("file")
-		fileHash, _ := CalculateHash(file)
 
 		ext := filepath.Ext(file.Filename)
 
-		fileNameBase := *fileHash
-		folder := "uploads/" + fileNameBase[0:2] + "/"
-
-		filePath := folder + fileNameBase + ext
-		thumbFilePath := folder + fileNameBase + "-thumb" + ext
-
-		// Upload the file to specific dst.
-		err := c.SaveUploadedFile(file, filePath)
-		if err != nil {
-			return
-		}
-
-		CreateThumbnail(filePath, thumbSize, thumbSize, thumbFilePath)
+		newFilename := fmt.Sprintf("%s%s", uuid.New(), ext)
 
 		attachment := Attachment{
-			Id:       uuid.New(),
-			FilePath: thumbFilePath,
+			Id:               uuid.New(),
+			Files:            Files{newFilename},
+			OriginalFileName: file.Filename,
 		}
 
-		db.Create(&attachment)
+		var result *AttachmentResult
+
+		err := db.Transaction(func(tx *gorm.DB) error {
+			res, err := manager.SaveAttachment(file, newFilename)
+
+			if err != nil {
+				tx.Rollback()
+				return err
+			}
+
+			tx.Create(&attachment)
+
+			tx.Commit()
+
+			result = res
+			return nil
+		})
+
+		if err != nil {
+			fmt.Println(err)
+		}
 
 		uploadResponse := &UploadReponse{
-			Url:          "/" + thumbFilePath,
-			Href:         "/" + filePath + "?content-disposition=attachment",
+			Url:          "/" + result.ThumbFilename,
+			Href:         "/" + result.OriginalFilename + "?content-disposition=attachment",
 			AttachmentId: attachment.Id,
 		}
+
 		c.JSON(http.StatusOK, uploadResponse)
 	}
 }

@@ -8,6 +8,6 @@ CREATE TABLE IF NOT EXISTS attachments
             references posts
             on update cascade on delete set null,
     created_at datetime default CURRENT_TIMESTAMP not null,
-    file_path  text                               not null
+    files  text                               not null
 );
 

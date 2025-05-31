@@ -25,7 +25,6 @@ func RunMigrations(dbc *gorm.DB) {
 
 	db, _ := dbc.DB()
 	dbDriver, _ := sqlite3.WithInstance(db, &sqlite3.Config{})
-
 	m, err := migrate.NewWithInstance("iofs", source, "daylog", dbDriver)
 	//defer m.Close()
 
@@ -38,7 +37,7 @@ func RunMigrations(dbc *gorm.DB) {
 }
 
 func NewDB(dbPath string) (*gorm.DB, error) {
-	dbc, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
+	dbc, err := gorm.Open(sqlite.Open(dbPath+"?_foreign_keys=on"), &gorm.Config{})
 
 	if err != nil {
 		return nil, err
