@@ -3,13 +3,14 @@ package internal
 import (
 	"embed"
 	"errors"
+	"log"
+	"log/slog"
+
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/sqlite3"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
-	"log"
-	"log/slog"
 )
 
 //go:embed all:migrations/*.sql

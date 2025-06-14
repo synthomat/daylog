@@ -2,29 +2,30 @@
 
 <script>
     (function() {
+
         var attachmentIds = []
 
-        addEventListener('trix-initialize', (event) => {
-            updateAttachmentsList(event.srcElement.editorController)
-        })
 
-        addEventListener('trix-blur', (event) => {
-            updateAttachmentsList(event.srcElement.editorController)
-        })
+        function updateAttachmentsList(event) {
+            const attachment = event.srcElement
 
-        function updateAttachmentsList(attachment) {
-            const attachmentIds = attachment.attachmentManager.getAttachments().map(a =>
-                a.attachment.getAttribute('attachmentId')
+            const attachmentIds = attachment.attachmentManager.getAttachments().map(
+                a => a.attachment.getAttribute('attachmentId')
             )
             document.getElementById('attachmentIds').value = attachmentIds.join(',')
         }
 
-        addEventListener("trix-attachment-add", (event) => {
-            if (!event.attachment.file) {
+        addEventListener('trix-initialize', updateAttachmentsList)
+        addEventListener('trix-blur', updateAttachmentsList)
+        addEventListener('trix-attachment-remove', (event) => {
+            console.log('removing attachment')
+            console.log(event)
+        })
+
+        addEventListener("trix-attachment-add", ({ attachment }) => {
+            if (!attachment.file) {
                 return
             }
-
-            const attachment = event.attachment;
 
             uploadFile(attachment.file,
                 (progress) => attachment.setUploadProgress(progress),
