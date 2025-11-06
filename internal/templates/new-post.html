@@ -22,9 +22,6 @@
     </form>
 
     <script>
-        document.getElementById('event-time').value = new Date().toISOString().substring(0, 16)
-
-
         const fetchWeather = async (lat, lon) => {
             const metrics = [
                 'precipitation', 'rain', 'relative_humidity_2m', 'snowfall', 'surface_pressure', 'temperature_2m',

@@ -80,8 +80,8 @@
     <div class="col-lg-4">
         <div class="mb-3">
             <label class="form-label" for="">Event Time</label>
-            <input class="form-control" type="datetime-local" id="event-time" name="eventTime"
-                   value="{{ post.EventTime.Format("2006-01-02T15:04") }}" required/>
+            <input class="form-control" type="date" id="eventTime" name="eventTime"
+                   value="{{ post.EventTime.Format("2006-01-02") }}" required/>
         </div>
         <div id="geo-data" style="display: none;">
             <img src="" id="weather_icon" style="width: 48px"/> <span id="weather_deg">loading</span>

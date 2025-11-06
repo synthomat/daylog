@@ -3,14 +3,15 @@ package internal
 import (
 	"embed"
 	"fmt"
-	"github.com/gin-contrib/sessions"
-	"github.com/gin-contrib/sessions/cookie"
-	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 	"io/fs"
 	"log"
 	"log/slog"
 	"net/http"
+
+	"github.com/gin-contrib/sessions"
+	"github.com/gin-contrib/sessions/cookie"
+	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 type Server struct {

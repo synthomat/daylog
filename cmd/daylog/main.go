@@ -3,10 +3,11 @@ package main
 import (
 	"daylog/internal"
 	"flag"
-	"github.com/google/uuid"
 	"log"
 	"os"
 	"strings"
+
+	"github.com/google/uuid"
 )
 
 const (

@@ -1,9 +1,10 @@
 package internal
 
 import (
-	"github.com/disintegration/imaging"
 	"image/color"
 	"slices"
+
+	"github.com/disintegration/imaging"
 )
 
 type AttachmentDiffs struct {

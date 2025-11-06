@@ -5,9 +5,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
-	"gorm.io/gorm"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -16,6 +13,10 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 // InjectPostMiddleware is a middleware that injects the Post struct into the request context from the post-id in the URL
@@ -40,7 +41,7 @@ func InjectPostMiddleware(db *gorm.DB) gin.HandlerFunc {
 }
 
 type PostRequest struct {
-	EventTime     time.Time `form:"eventTime" time_format:"2006-01-02T15:04"`
+	EventTime     time.Time `form:"eventTime" time_format:"2006-01-02"`
 	Body          string    `form:"body" binding:"required"`
 	AttachmentIds string    `form:"attachmentIds"`
 }
@@ -63,9 +64,10 @@ func postFromRequest(r *http.Request) (*Post, error) {
 
 func NewPostHandler(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		postRequest := PostRequest{EventTime: time.Now()}
+
 		if c.Request.Method == http.MethodPost {
-			var postRequest PostRequest
-			c.ShouldBind(&postRequest)
+			c.Bind(&postRequest)
 
 			var post Post
 			PostRequestToModel(postRequest, &post)
@@ -84,7 +86,7 @@ func NewPostHandler(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
-		c.HTML(http.StatusOK, "new-post.html", Rcx(c, Cx{}))
+		c.HTML(http.StatusOK, "new-post.html", Rcx(c, Cx{"post": postRequest}))
 	}
 }
 
@@ -99,6 +101,7 @@ func EditPostHandler(db *gorm.DB) gin.HandlerFunc {
 	//attachmentManager := &AttachmentManager{db: db}
 
 	return func(c *gin.Context) {
+		// get Post object from middleware
 		post := c.MustGet("post").(Post)
 
 		if c.Request.Method == http.MethodPost {
