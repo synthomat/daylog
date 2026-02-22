@@ -1,66 +1,7 @@
-<script type="text/javascript" src="https://unpkg.com/trix@2.1.13/dist/trix.umd.min.js"></script>
+<script type="text/javascript" src="https://unpkg.com/trix@2.1.15/dist/trix.umd.min.js"></script>
 
 <script>
-    (function() {
 
-        var attachmentIds = []
-
-
-        function updateAttachmentsList(event) {
-            const attachment = event.srcElement
-
-            const attachmentIds = attachment.attachmentManager.getAttachments().map(
-                a => a.attachment.getAttribute('attachmentId')
-            )
-            document.getElementById('attachmentIds').value = attachmentIds.join(',')
-        }
-
-        addEventListener('trix-initialize', updateAttachmentsList)
-        addEventListener('trix-blur', updateAttachmentsList)
-        addEventListener('trix-attachment-remove', (event) => {
-            console.log('removing attachment')
-            console.log(event)
-        })
-
-        addEventListener("trix-attachment-add", ({ attachment }) => {
-            if (!attachment.file) {
-                return
-            }
-
-            uploadFile(attachment.file,
-                (progress) => attachment.setUploadProgress(progress),
-                (attributes) => attachment.setAttributes(attributes)
-            )
-        })
-
-        function uploadFile(file, progressCallback, successCallback) {
-            var formData = createFormData(file)
-            var xhr = new XMLHttpRequest()
-
-            xhr.open("POST", "/upload", true)
-
-            xhr.upload.addEventListener("progress", (event) => {
-                var progress = event.loaded / event.total * 100
-                progressCallback(progress)
-            })
-
-            xhr.addEventListener("load", (event) => {
-                if (xhr.status == 200) {
-                    const attributes = JSON.parse(xhr.response)
-                    successCallback(attributes)
-                }
-            })
-
-            xhr.send(formData)
-        }
-
-        function createFormData(file) {
-            var data = new FormData()
-            data.append("Content-Type", file.type)
-            data.append("file", file)
-            return data
-        }
-    })();
 </script>
 
 <input type="hidden" id="attachmentIds" name="attachmentIds">
@@ -74,6 +15,9 @@
         <div class="mb-3">
             <label class="form-label" for="">Title (optional)</label>
             <input class="form-control" name="title" value="{{ post.Title }}"/>
+        </div>
+        <div class="mb-3">
+        <img src="..." alt="..." class="img-thumbnail"> <img src="..." alt="..." class="img-thumbnail"> <img src="..." alt="..." class="img-thumbnail">
         </div>
     </div>
     <!--<div class="w-100 d-none d-md-block"></div>-->
@@ -92,5 +36,6 @@
                 <div id="map" style="width: 100%; height: 270px;"></div>
             </div>
         </div>
+
     </div>
 </div>
