@@ -8,13 +8,8 @@
 <div class="row">
     <div class="col">
         <div class="mb-3">
-            <label class="form-label" for="">Body</label>
             <input id="post-body" value="{{ post.Body }}" type="hidden" name="body">
             <trix-editor input="post-body" class="trix-content"></trix-editor>
-        </div>
-        <div class="mb-3">
-            <label class="form-label" for="">Title (optional)</label>
-            <input class="form-control" name="title" value="{{ post.Title }}"/>
         </div>
     </div>
     <!--<div class="w-100 d-none d-md-block"></div>-->

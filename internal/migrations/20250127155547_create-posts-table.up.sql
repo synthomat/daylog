@@ -7,5 +7,5 @@ CREATE TABLE IF NOT EXISTS "posts"
     deleted_at datetime,
     event_time datetime not null,
     title      text,
-    body       text not null
+    body       text     not null
 )
