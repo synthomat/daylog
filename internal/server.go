@@ -60,8 +60,6 @@ func Run(config Config) {
 		pg.Match([]string{http.MethodGet, http.MethodPost}, "/edit", EditPostHandler(db))
 	}
 
-	r.POST("/upload", UploadFileHandler(db))
-
 	err = r.Run(fmt.Sprintf("0.0.0.0:%d", config.Port))
 
 	if err != nil {

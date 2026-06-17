@@ -1,15 +1,9 @@
 package internal
 
 import (
-	"crypto/sha1"
-	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
-	"mime/multipart"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -78,10 +72,6 @@ func NewPostHandler(db *gorm.DB) gin.HandlerFunc {
 				fmt.Println(err)
 			}
 
-			postAttachmentIds := strings.Split(postRequest.AttachmentIds, ",")
-			for _, aid := range postAttachmentIds {
-				db.Model(&Attachment{}).Where("id = ?", aid).Update("post_id", post.Id)
-			}
 			c.Redirect(http.StatusFound, "/")
 			return
 		}
@@ -118,26 +108,6 @@ func EditPostHandler(db *gorm.DB) gin.HandlerFunc {
 
 			PostRequestToModel(postRequest, &post)
 			db.Save(post)
-
-			postAttachmentIds := strings.Split(postRequest.AttachmentIds, ",")
-
-			var savedAttachments []Attachment
-			db.Find(&savedAttachments, "post_id = ?", post.Id)
-
-			var savedAttachmentIds []string
-			for _, sa := range savedAttachments {
-				savedAttachmentIds = append(savedAttachmentIds, sa.Id.String())
-			}
-
-			attachmentDiff := DiffAttachments(postAttachmentIds, savedAttachmentIds)
-
-			for _, aid := range attachmentDiff.ToAdd {
-				db.Model(&Attachment{}).Where("id = ?", aid).Update("post_id", post.Id)
-			}
-
-			for _, aid := range attachmentDiff.ToDelete {
-				db.Model(&Attachment{}).Where("id = ?", aid).Update("post_id", nil)
-			}
 
 			c.Redirect(http.StatusFound, "/")
 			return
@@ -263,168 +233,5 @@ func IndexHandler(db *gorm.DB) gin.HandlerFunc {
 			"pagination":  paginationLinks,
 			"reauth":      !authedForArchive,
 		}))
-	}
-}
-
-func CalculateHash(file *multipart.FileHeader) (*string, error) {
-	openedFile, err := file.Open()
-	if err != nil {
-		return nil, err
-	}
-	defer openedFile.Close()
-
-	// create SHA1-Hash
-	hasher := sha1.New()
-	if _, err := io.Copy(hasher, openedFile); err != nil {
-		return nil, err
-	}
-
-	// convert hash to hex
-	sha1Hash := hex.EncodeToString(hasher.Sum(nil))
-	return &sha1Hash, nil
-}
-
-const thumbSize = 500
-
-type UploadReponse struct {
-	Url          string    `json:"url"`
-	Href         string    `json:"href"`
-	AttachmentId uuid.UUID `json:"attachmentId"`
-}
-
-type StorageConfig struct {
-	Path         string
-	ExternalPath string
-}
-
-type Storage struct {
-	config StorageConfig
-}
-
-func NewStorage(config StorageConfig) *Storage {
-	return &Storage{
-		config: config,
-	}
-}
-
-func (s *Storage) SaveFile(file *multipart.FileHeader, fileName string) error {
-	dst := s.config.Path
-	dst = fileName
-
-	src, err := file.Open()
-	if err != nil {
-		return err
-	}
-	defer src.Close()
-
-	if err = os.MkdirAll(filepath.Dir(dst), 0750); err != nil {
-		return err
-	}
-
-	out, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-
-	_, err = io.Copy(out, src)
-	return err
-}
-
-type AttachmentManager struct {
-	Storage *Storage
-	Db      *gorm.DB
-}
-
-func (m AttachmentManager) CreateThumbnail(file *multipart.FileHeader, dst string) error {
-	return nil
-}
-
-type AttachmentResult struct {
-	OriginalFilename string
-	ThumbFilename    string
-}
-
-func (m AttachmentManager) SaveAttachment(file *multipart.FileHeader, newFilename string) (*AttachmentResult, error) {
-	prefix := newFilename[0:2]
-
-	fullOrigPath := filepath.Join(m.Storage.config.Path, "orig", prefix, newFilename)
-	fullThumbPath := filepath.Join(m.Storage.config.Path, "thumb", prefix, newFilename)
-
-	if err := m.Storage.SaveFile(file, fullOrigPath); err != nil {
-		return nil, err
-	}
-
-	if err := os.MkdirAll(filepath.Dir(fullThumbPath), 0750); err != nil {
-		return nil, err
-	}
-
-	if err := CreateThumbnail(fullOrigPath, thumbSize, thumbSize, fullThumbPath); err != nil {
-		return nil, err
-	}
-
-	res := &AttachmentResult{
-		OriginalFilename: fullOrigPath,
-		ThumbFilename:    fullThumbPath,
-	}
-
-	return res, nil
-}
-
-func NewAttachmentManager(db *gorm.DB) *AttachmentManager {
-	return &AttachmentManager{
-		Db: db,
-		Storage: NewStorage(StorageConfig{
-			Path:         "uploads",
-			ExternalPath: "/uploads",
-		}),
-	}
-}
-
-func UploadFileHandler(db *gorm.DB) gin.HandlerFunc {
-	manager := NewAttachmentManager(db)
-
-	return func(c *gin.Context) {
-		file, _ := c.FormFile("file")
-
-		ext := filepath.Ext(file.Filename)
-
-		newFilename := fmt.Sprintf("%s%s", uuid.New(), ext)
-
-		attachment := Attachment{
-			Id:               uuid.New(),
-			Files:            Files{newFilename},
-			OriginalFileName: file.Filename,
-		}
-
-		var result *AttachmentResult
-
-		err := db.Transaction(func(tx *gorm.DB) error {
-			res, err := manager.SaveAttachment(file, newFilename)
-
-			if err != nil {
-				tx.Rollback()
-				return err
-			}
-
-			tx.Create(&attachment)
-
-			tx.Commit()
-
-			result = res
-			return nil
-		})
-
-		if err != nil {
-			fmt.Println(err)
-		}
-
-		uploadResponse := &UploadReponse{
-			Url:          "/" + result.ThumbFilename,
-			Href:         "/" + result.OriginalFilename + "?content-disposition=attachment",
-			AttachmentId: attachment.Id,
-		}
-
-		c.JSON(http.StatusOK, uploadResponse)
 	}
 }
