@@ -1,3 +1,4 @@
 .idea
 /*.db
 uploads/
+.DS_Store
