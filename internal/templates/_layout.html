@@ -1,59 +1,44 @@
-<html lang="en">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="color-scheme" content="dark light">
-    <script src="/static/js/htmx.min.js" defer></script>
-    <!--
+{% extends "_base.html" %}
 
-    <script src="/static/js/alpine.min.js" defer></script>
-    -->
-
-    <!--<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
-          integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">-->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.8/dist/cosmo/bootstrap.min.css">
-    <link rel="stylesheet" type="text/css" href="https://unpkg.com/trix@2.1.19/dist/trix.css">
-    <link rel="stylesheet" href="/static/css/app.css">
-
-    <title>Daylog</title>
-</head>
-
-<body>
-<nav class="navbar navbar-expand-lg bg-body-tertiary" style="margin-bottom: 20px">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="/">
-            <img src="/static/img/journal-icon-s.png" alt="Bootstrap" width="30" height="24"
-                 class="d-inline-block align-text-top">
-            DayLog
-        </a>
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
-                aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-        <div class="collapse navbar-collapse" id="navbarNav">
-            {% if authenticated %}
-            <ul class="navbar-nav me-auto">
-                <li class="nav-item">
-                    <a class="nav-link active" aria-current="page" href="/">Home</a>
-                </li>
-                <li class="nav-item">
-                    <a href="/new" class="btn btn-primary" role="button">write.</a>
-                </li>
-            </ul>
-
-            <form class="d-flex mb-0" role="search">
-                <input class="form-control me-2" type="search" name="q" placeholder="Search" aria-label="Search"
-                       value="{{ searchQuery }}">
-            </form>
-            <div class="d-flex">
-                <a href="" class="btn btn-outline-dark" hx-post="/logout">logout</a>
-            </div>
-            {% endif %}
-        </div>
+{% block content %}
+<div class="navbar bg-base-100 shadow-sm gab-2">
+    <div class="flex-1">
+        <a class="btn btn-ghost text-xl" href="/"><img src="/static/img/journal-icon-s.png" alt="Bootstrap" width="30" height="24"
+                                                       class="d-inline-block align-text-top"> Daylog</a>
     </div>
-</nav>
+    {% if authenticated %}
+    <div class="navbar-end gap-2">
+        <form class="" role="search">
+            <input class="input" type="search" name="q" placeholder="Search" aria-label="Search"
+                   value="{{ searchQuery }}">
+        </form>
 
+        <a class="btn" hx-post="/logout">Logout</a>
+    </div>
+    {% endif %}
+</div>
+
+
+<div style="margin: 20px;">
 {% block body %}{% endblock %}
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
-</body>
-</html>
+</div>
+
+<!--
+<div class="dock">
+    <button class="dock-active">
+        <svg class="size-[1.2em]" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><g fill="currentColor" stroke-linejoin="miter" stroke-linecap="butt"><polyline points="1 11 12 2 23 11" fill="none" stroke="currentColor" stroke-miterlimit="10" stroke-width="2"></polyline><path d="m5,13v7c0,1.105.895,2,2,2h10c1.105,0,2-.895,2-2v-7" fill="none" stroke="currentColor" stroke-linecap="square" stroke-miterlimit="10" stroke-width="2"></path><line x1="12" y1="22" x2="12" y2="18" fill="none" stroke="currentColor" stroke-linecap="square" stroke-miterlimit="10" stroke-width="2"></line></g></svg>
+        <span class="dock-label">Home</span>
+    </button>
+
+    <button>
+        <svg class="size-[1.2em]" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><g fill="currentColor" stroke-linejoin="miter" stroke-linecap="butt"><polyline points="3 14 9 14 9 17 15 17 15 14 21 14" fill="none" stroke="currentColor" stroke-miterlimit="10" stroke-width="2"></polyline><rect x="3" y="3" width="18" height="18" rx="2" ry="2" fill="none" stroke="currentColor" stroke-linecap="square" stroke-miterlimit="10" stroke-width="2"></rect></g></svg>
+        <span class="dock-label">Inbox</span>
+    </button>
+
+    <button>
+        <svg class="size-[1.2em]" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><g fill="currentColor" stroke-linejoin="miter" stroke-linecap="butt"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-linecap="square" stroke-miterlimit="10" stroke-width="2"></circle><path d="m22,13.25v-2.5l-2.318-.966c-.167-.581-.395-1.135-.682-1.654l.954-2.318-1.768-1.768-2.318.954c-.518-.287-1.073-.515-1.654-.682l-.966-2.318h-2.5l-.966,2.318c-.581.167-1.135.395-1.654.682l-2.318-.954-1.768,1.768.954,2.318c-.287.518-.515,1.073-.682,1.654l-2.318.966v2.5l2.318.966c.167.581.395,1.135.682,1.654l-.954,2.318,1.768,1.768,2.318-.954c.518.287,1.073.515,1.654.682l.966,2.318h2.5l.966-2.318c.581-.167,1.135-.395,1.654-.682l2.318.954,1.768-1.768-.954-2.318c.287-.518.515-1.073.682-1.654l2.318-.966Z" fill="none" stroke="currentColor" stroke-linecap="square" stroke-miterlimit="10" stroke-width="2"></path></g></svg>
+        <span class="dock-label">Settings</span>
+    </button>
+</div>
+-->
+{% endblock %}

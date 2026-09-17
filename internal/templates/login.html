@@ -1,16 +1,24 @@
-{% extends "_layout.html" %}
+{% extends "_base.html" %}
 
-{% block body %}
-<main class="container" style="margin-top: 50px">
-    <img src="/static/img/journal-icon-l.png" class="rounded mx-auto d-block" style="width: 160px" alt=""/>
-    <h2>Login</h2>
-        <form method="POST" action="/login">
-            <div class="mb-3">
-                <label for="username" class="form-label">Password</label>
-                <input type="password" autofocus class="form-control" name="password" id="username"
-                       aria-describedby="usernameHelp"/>
-            </div>
-            <button class="btn btn-primary">Login</button>
-        </form>
+{% block content %}
+<main class="container flex justify-center" style="margin-top: 50px">
+    <div class="card bg-base-100 w-96">
+        <figure>
+            <img src="/static/img/journal-icon-l.png" class="rounded mx-auto d-block" style="width: 160px" alt=""/>
+        </figure>
+        <div class="card-body">
+            <form method="POST" action="/login">
+
+                <fieldset class="fieldset bg-base-100 border-base-300 rounded-box w-xs border p-4">
+                    <label class="label">Password</label>
+                    <input type="password" autofocus class="input" name="password" id="username"
+                           aria-describedby="usernameHelp"/>
+                    <button class="btn btn-neutral mt-4">Login</button>
+                </fieldset>
+
+
+            </form>
+        </div>
+    </div>
 </main>
 {% endblock %}

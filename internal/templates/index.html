@@ -1,13 +1,13 @@
 {% extends "_layout.html" %}
 
 {% block body %}
-<main class="container mt-4">
-    <div class="grid mb-5">
+<main class="container mt-4" style="margin-bottom: 6em;">
+    <select class="select">
         {% for ye in years %}
-        <a href="?y={{ ye.Year }}"><span
-                class="badge text-bg-{% ifequal ye.Year yearFilter %}secondary{% else %}light{% endifequal %}">{{ ye.Year }}</span></a>
+        <option value="?y={{ ye.Year }}">{{ ye.Year }}</option>
         {% endfor %}
-    </div>
+    </select>
+
 
     {% for post in posts %}
     <article class="p-0 mb-5 trix-content">
@@ -19,15 +19,30 @@
     </article>
     {% endfor %}
 
-    <nav aria-label="Page navigation example">
-        <ul class="pagination justify-content-center flex-wrap">
-            {% for p in pagination %}
-            <li class="page-item">
-                <a class="page-link {% if p.Ord == page %}active{% endif %}" href="?{{ p.Params }}">{{ p.Ord }}</a>
-            </li>
-            {% endfor %}
-        </ul>
-        {% if reauth %}<div class="justify-content-center flex-wrap" style="text-align: center; margin: 2em 0 2em 0">Please <a href="/login">re-authenticate</a> to see more entries</div>{% endif %}
-    </nav>
+    <!--
+    <div class="join">
+        {% for p in pagination %}
+        <a class="join-item btn {% if p.Ord == page %}btn-active{% endif %}" href="?{{ p.Params }}">{{ p.Ord }}</a>
+        {% endfor %}
+    </div>
+    -->
+
+    {% if reauth %}<div class="justify-content-center flex-wrap" style="text-align: center; margin: 2em 0 2em 0">Please <a href="/login">re-authenticate</a> to see more entries</div>{% endif %}
+
 </main>
+
+<div class="fab" style="margin-bottom: 4em;">
+    <a class="btn btn-lg btn-circle btn-primary" href="/new"> <svg
+            aria-label="New"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke-width="2"
+            stroke="currentColor"
+            class="size-6"
+    >
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+    </svg></a>
+</div>
+
 {% endblock %}
