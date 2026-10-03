@@ -206,6 +206,7 @@ func IndexHandler(db *gorm.DB) gin.HandlerFunc {
 		db.Raw(
 			"SELECT DISTINCT strftime('%Y', event_time) as year, count(*) as count\n" +
 				"FROM posts\n" +
+				"WHERE deleted_at IS NULL\n" +
 				"GROUP BY year\n" +
 				"ORDER BY year DESC").Scan(&yearEntries)
 
