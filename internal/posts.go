@@ -158,7 +158,7 @@ func ParseFilter(c *gin.Context) (*QueryFilter, error) {
 }
 
 func QueryByFilter(db *gorm.DB, filter *QueryFilter) *gorm.DB {
-	query := db.Order("event_time desc")
+	query := db.Order("event_time desc, created_at desc")
 
 	// "full-text search"
 	if search := filter.Search; search != "" {
